@@ -222,6 +222,13 @@ class Gameboard {
     return this.ships.every((ship) => ship.isSunk());
   }
 
+  clearShips(): void {
+    this.ships = [];
+    this.tiles = Array.from({ length: this.size }, () =>
+      new Array(this.size).fill(false),
+    );
+  }
+
   distributeShips(ships: number[]): boolean {
     const done: boolean[] = [];
     ships

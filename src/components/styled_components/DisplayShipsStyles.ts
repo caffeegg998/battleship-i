@@ -1,28 +1,18 @@
 import styled, { css } from "styled-components";
 
 const ShipsContainer = styled.div<{ player: string }>`
-  position: absolute;
   display: flex;
   flex-direction: column;
   gap: .7rem;
-  top: 1rem;
+  width: 8rem; /* Fixed width matched with PlayerProfile */
+  margin-top: 2rem; /* Align with the board grid */
+  
   ${({ player }) => player === "player" && css`
     align-items: flex-end;
-    right: 95%;
   `};
   ${({ player }) => player === "computer" && css`
-    left: 95%;
+    align-items: flex-start;
   `};
-  
-  @media (max-width: 1150px) {
-    display: none;
-  }
-  @media (max-width: 1035px) {
-    display: flex;
-  }
-  @media (max-width: 570px) {
-    display: none;
-  }
 `;
 
 const ShipWrapper = styled.div`
@@ -30,10 +20,10 @@ const ShipWrapper = styled.div`
   gap: .3rem;
 `;
 
-const Part = styled.div<{ sunk: boolean }>`
+const Part = styled.div<{ $sunk: boolean }>`
   width: .7rem;
   height: .7rem;
-  background-color: ${props => props.sunk ? ({theme})=>theme.colors.shipSunk : ({theme})=>theme.colors.ship};
+  background-color: ${props => props.$sunk ? ({theme})=>theme.colors.shipSunk : ({theme})=>theme.colors.ship};
 `;
 
 export {ShipsContainer, ShipWrapper, Part};

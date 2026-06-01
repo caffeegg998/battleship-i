@@ -1,29 +1,25 @@
 import React from 'react';
-import renderer from 'react-test-renderer';
+import { render } from '@testing-library/react';
+import { ThemeProvider } from 'styled-components';
+import Theme from '../../theme/Theme';
 import Board from '../Board';
 import Game from '../../scripts/Game';
+import { expect, test } from 'vitest';
 
 test('component renders', () => {
   const game = new Game([2, 2], 4);
-  const tree = renderer
-    .create(
+  const { asFragment } = render(
+    <ThemeProvider theme={Theme}>
       <Board
         game={game}
         player={0}
         state={game.getCurrentPlayer.getBoard.getBoardStates}
-        loop={() => {
-          return;
-        }}
-        rotate={() => {
-          return;
-        }}
-        move={() => {
-          return;
-        }}
+        loop={() => {}}
         turn={0}
         init={game.getInit}
-      />,
-    )
-    .toJSON();
-  expect(tree).toMatchSnapshot();
+        reset={false}
+      />
+    </ThemeProvider>
+  );
+  expect(asFragment()).toMatchSnapshot();
 });

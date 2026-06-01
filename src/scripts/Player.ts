@@ -4,10 +4,12 @@ import Battleship from "./Battleship";
 class Player {
   private board: Gameboard;
   private name: string;
+  private avatar: string;
 
   constructor(board: Gameboard, name: string) {
     this.board = board;
     this.name = name;
+    this.avatar = '';
   }
 
   get getBoard(): Gameboard {
@@ -16,6 +18,18 @@ class Player {
 
   get getName(): string {
     return this.name;
+  }
+
+  setName(name: string): void {
+    this.name = name;
+  }
+
+  get getAvatar(): string {
+    return this.avatar;
+  }
+
+  setAvatar(avatar: string): void {
+    this.avatar = avatar;
   }
 
   chooseAttack(board: Gameboard): number[] {

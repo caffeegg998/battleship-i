@@ -15,10 +15,10 @@ const DisplayShips = ({player, ships}: DisplayShipsProps) => {
           <ShipWrapper key={i}>
             {ship.getParts.map((_, j) => {
               if(ship.isSunk()) {
-                return <Part sunk={true} key={j} />;
+                return <Part $sunk={true} key={j} />;
               }
               else {
-                return <Part sunk={false} key={j} />;
+                return <Part $sunk={false} key={j} />;
               }
             })}
           </ShipWrapper>

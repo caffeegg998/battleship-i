@@ -1,24 +1,172 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Boards from "./components/Boards";
+import Confetti from "./components/Confetti";
 import Game from "./scripts/Game";
 import { Display, DisplayWrapper, Buttons, Header, HeaderWrapper, Title } from "./components/styled_components/AppStyles";
-import { FaWater } from "react-icons/all";
+import { FaWater } from "react-icons/fa";
+import { io, Socket } from "socket.io-client";
 
 const App = () => {
   const ships: number[] = [5, 4, 3, 3, 2];
   const [game, setGame] = useState<Game>(new Game(ships, 10));
+  
+  
   const [display, setDisplay] = useState<string>('Move/Rotate ships');
   const [turn, setTurn] = useState<0 | 1>(game.getTurn);
   const [init, setInit] = useState<boolean>(game.getInit);
   const [reset, setReset] = useState<boolean>(false);
 
+  // Multiplayer State
+  const [gameMode, setGameMode] = useState<'singleplayer' | 'lobby' | 'multiplayer' | null>(null);
+  const [roomId, setRoomId] = useState<string>('');
+  const [playerName, setPlayerName] = useState<string>(() => {
+    return localStorage.getItem('battleship_playerName') || `Guest${Math.floor(Math.random() * 10000)}`;
+  });
+  const [localAvatar, setLocalAvatar] = useState<string>(() => {
+    return localStorage.getItem('battleship_localAvatar') || '';
+  });
+  
+  // Initialize random avatar if not persisted
+  useEffect(() => {
+    if (!localAvatar) {
+      const avatarFiles = ['avatar1.jpg', 'avatar2.webp', 'avatar3.jpg', 'avatar4.jpg', 'avatar5.jpg'];
+      const randomAvatar = `/avatars/${avatarFiles[Math.floor(Math.random() * avatarFiles.length)]}`;
+      setLocalAvatar(randomAvatar);
+      game.getPlayer(0).setAvatar(randomAvatar);
+    } else {
+      game.getPlayer(0).setAvatar(localAvatar);
+    }
+    const newGame = Object.assign(Object.create(Object.getPrototypeOf(game)), game);
+    setGame(newGame);
+  }, []); // Run once on mount
+
+  // Persist profile changes
+  useEffect(() => {
+    localStorage.setItem('battleship_playerName', playerName);
+  }, [playerName]);
+
+  useEffect(() => {
+    if (localAvatar) {
+      localStorage.setItem('battleship_localAvatar', localAvatar);
+    }
+  }, [localAvatar]);
+
+  const [lobbyRooms, setLobbyRooms] = useState<{roomId: string, hostName: string}[]>([]);
+  const [playerIndex, setPlayerIndex] = useState<number | null>(null);
+  const [multiplayerStatus, setMultiplayerStatus] = useState<string>('');
+  const [isOpponentReady, setIsOpponentReady] = useState<boolean>(false);
+  const [isLocalReady, setIsLocalReady] = useState<boolean>(false);
+  const [hasOpponent, setHasOpponent] = useState<boolean>(false);
+  const [opponentName, setOpponentName] = useState<string>('');
+  const [opponentAvatar, setOpponentAvatar] = useState<string>('');
+  const socketRef = useRef<Socket | null>(null);
+
+  useEffect(() => {
+    if (gameMode === 'lobby' || gameMode === 'multiplayer') {
+      if (!socketRef.current) {
+        // Dynamically connect to the backend based on the current hostname
+        const backendUrl = `http://${window.location.hostname}:3001`;
+        socketRef.current = io(backendUrl);
+      }
+      const socket = socketRef.current;
+
+      if (socket.connected) {
+        socket.emit('request_room_list');
+      }
+
+      socket.on('connect', () => {
+        socket.emit('request_room_list');
+      });
+
+      socket.on('room_list', (rooms) => {
+        setLobbyRooms(rooms);
+      });
+
+      socket.on('player_assigned', (index: number) => {
+        setPlayerIndex(index);
+        setGameMode('multiplayer');
+        setMultiplayerStatus('Joined room. Waiting for opponent...');
+        if (index === 1) {
+            game.next();
+            setTurn(game.getTurn);
+            setHasOpponent(true); // If we are player 1, the host (player 0) is already here
+        }
+      });
+
+      socket.on('all_players_connected', ({ opponentName, opponentAvatar }) => {
+        setHasOpponent(true);
+        if (opponentName) {
+          setOpponentName(opponentName);
+          game.getPlayer(1).setName(opponentName);
+        }
+        if (opponentAvatar) {
+          setOpponentAvatar(opponentAvatar);
+          game.getPlayer(1).setAvatar(opponentAvatar);
+        }
+        setMultiplayerStatus('Opponent connected. Place your ships!');
+        // Force a re-render
+        setGame(prev => Object.assign(Object.create(Object.getPrototypeOf(prev)), prev));
+      });
+
+      socket.on('opponent_ready', () => {
+        setIsOpponentReady(true);
+        setMultiplayerStatus('Opponent is Ready!');
+      });
+
+      socket.on('game_start', ({ opponentShips, opponentName, opponentAvatar }) => {
+        game.setOpponentShips(opponentShips);
+        if (opponentName) {
+          setOpponentName(opponentName);
+          game.getPlayer(1).setName(opponentName);
+        }
+        if (opponentAvatar) {
+          setOpponentAvatar(opponentAvatar);
+          game.getPlayer(1).setAvatar(opponentAvatar);
+        }
+        game.init();
+        updateInit();
+        updateDisplay();
+        setMultiplayerStatus('Game Started!');
+      });
+
+      socket.on('opponent_disconnected', () => {
+        alert('Opponent disconnected');
+        window.location.reload();
+      });
+
+      socket.on('error', (msg) => {
+        alert(msg);
+        socket.disconnect();
+      });
+
+      return () => {
+        socket.off('room_list');
+        socket.off('player_assigned');
+        socket.off('all_players_connected');
+        socket.off('opponent_ready');
+        socket.off('game_start');
+        socket.off('opponent_disconnected');
+        socket.off('error');
+      };
+    }
+  }, [gameMode, game]);
+
   const updateDisplay = () => {
     if (!game.getInit) {
       setDisplay('Move/Rotate ships');
     } else if (game.getWinner !== -1) {
-      setDisplay(`${game.getPlayer(game.getWinner).getName} won!`);
+      // Locally, player 0 is always the local user.
+      const winnerName = gameMode === 'multiplayer' 
+        ? (game.getWinner === 0 ? "You" : (opponentName || "Opponent"))
+        : game.getPlayer(game.getWinner).getName;
+      setDisplay(`${winnerName} won!`);
     } else if (game.getInit) {
-      setDisplay(`${game.getCurrentPlayer.getName} turn`);
+      if (game.getTurn === 0) {
+        setDisplay('Your turn');
+      } else {
+        const nameToShow = gameMode === 'multiplayer' ? opponentName : game.getPlayer(1).getName;
+        setDisplay(`${nameToShow}'s turn`);
+      }
     }
   }
 
@@ -32,17 +180,169 @@ const App = () => {
   }
 
   const initGame = () => {
-    game.init();
-    updateDisplay();
-    updateInit();
+    if (gameMode === 'multiplayer') {
+      const shipsData = game.getPlayer(0).getBoard.getShips.map(s => ({
+        length: s.getLength,
+        origin: s.getOrigin,
+        rotated: s.getRotated
+      }));
+      socketRef.current?.emit('ships_ready', { roomId, ships: shipsData });
+      setMultiplayerStatus('Waiting for opponent to be ready...');
+    } else {
+      game.init();
+      updateDisplay();
+      updateInit();
+      setReset(false);
+    }
+  }
+
+  const randomizeShips = () => {
+    const board = game.getPlayer(0).getBoard;
+    board.clearShips();
+    board.distributeShips(game.getShips);
+    // Force a re-render by replacing the game instance
+    const newGame = Object.assign(Object.create(Object.getPrototypeOf(game)), game);
+    setGame(newGame);
+    // Setting reset to false then true triggers the Board component to re-read states
     setReset(false);
+    setTimeout(() => setReset(true), 0);
   }
 
   const restartGame = async () => {
-    setGame(new Game(ships, 10));
+    const newGame = new Game(ships, 10);
+    if (gameMode === 'multiplayer' && playerIndex === 1) {
+        newGame.next();
+    }
+    
+    // Preserve names
+    newGame.getPlayer(0).setName(game.getPlayer(0).getName);
+    newGame.getPlayer(1).setName(game.getPlayer(1).getName);
+
+    setGame(newGame);
     setReset(true);
+    setTimeout(() => setReset(false), 0);
+    setTurn(newGame.getTurn);
     setDisplay("Move/Rotate ships");
     setInit(false);
+    
+    if (gameMode === 'multiplayer') {
+        setIsLocalReady(false);
+        setIsOpponentReady(false);
+        setMultiplayerStatus('Connected. Re-place ships and click Ready.');
+        socketRef.current?.emit('restart_game', roomId);
+    }
+  }
+
+  const handleJoinRoom = (idToJoin: string) => {
+    setRoomId(idToJoin);
+    if (socketRef.current) {
+      game.getPlayer(0).setName(playerName);
+      socketRef.current.emit('join_room', { roomId: idToJoin, playerName, avatar: localAvatar });
+    }
+  }
+
+  const createRoom = () => {
+    const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    handleJoinRoom(newRoomId);
+  }
+
+  const getMultiplayerButton = () => {
+    if (isLocalReady) {
+      return <button className="startGame disabled" type="button">Waiting for opponent...</button>;
+    }
+    const buttonText = isOpponentReady ? "Start Game" : "Ready";
+    return <button className="startGame" type="button" onClick={() => {
+      initGame();
+      setIsLocalReady(true);
+    }}>{buttonText}</button>;
+  }
+
+  if (gameMode === null) {
+    return (
+      <div className="app">
+        <HeaderWrapper>
+          <Title>
+            <FaWater/><Header>Battleship</Header><FaWater/>
+          </Title>
+        </HeaderWrapper>
+        <DisplayWrapper>
+          <Display style={{flexDirection: 'column', gap: '1rem'}}>
+            <h2>Select Game Mode</h2>
+            <Buttons>
+              <button className="startGame" onClick={() => setGameMode('singleplayer')}>Single Player (vs Computer)</button>
+              <button className="startGame" onClick={() => setGameMode('lobby')}>Multiplayer</button>
+            </Buttons>
+          </Display>
+        </DisplayWrapper>
+      </div>
+    );
+  }
+
+  if (gameMode === 'lobby') {
+    return (
+      <div className="app">
+        <HeaderWrapper>
+          <Title>
+            <FaWater/><Header>Battleship Lobby</Header><FaWater/>
+          </Title>
+        </HeaderWrapper>
+        <DisplayWrapper>
+          <Display style={{flexDirection: 'column', gap: '1rem', width: '300px'}}>
+            <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+              <label style={{fontWeight: 'bold'}}>Player Name</label>
+              <input 
+                type="text" 
+                value={playerName} 
+                onChange={(e) => setPlayerName(e.target.value)}
+                style={{padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc'}}
+              />
+            </div>
+            
+            <Buttons style={{margin: '1rem 0'}}>
+              <button className="startGame" onClick={createRoom} style={{width: '100%'}}>Create New Room</button>
+            </Buttons>
+
+            <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+              <label style={{fontWeight: 'bold'}}>Join a Room</label>
+              <div style={{display: 'flex', gap: '0.5rem'}}>
+                <input 
+                  type="text" 
+                  placeholder="Room ID" 
+                  value={roomId} 
+                  onChange={(e) => setRoomId(e.target.value)}
+                  style={{padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', flex: 1}}
+                />
+                <button className="startGame" onClick={() => handleJoinRoom(roomId)} style={{padding: '0 1rem'}}>Join</button>
+              </div>
+            </div>
+
+            <div style={{marginTop: '1rem', borderTop: '1px solid #ddd', paddingTop: '1rem'}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem'}}>
+                <h3 style={{fontSize: '1rem', margin: 0}}>Active Rooms ({lobbyRooms.length})</h3>
+                <button className="startGame" style={{padding: '0.3rem 0.8rem', fontSize: '0.8rem', margin: 0}} onClick={() => socketRef.current?.emit('request_room_list')}>Refresh</button>
+              </div>
+              {lobbyRooms.length === 0 ? (
+                <div style={{color: 'gray', fontSize: '0.9rem'}}>No active rooms waiting. Create one!</div>
+              ) : (
+                <ul style={{listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+                  {lobbyRooms.map((room, idx) => (
+                    <li key={idx} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', backgroundColor: '#f9f9f9', borderRadius: '4px'}}>
+                      <div>
+                        <strong>{room.roomId}</strong><br/>
+                        <small>Host: {room.hostName}</small>
+                      </div>
+                      <button className="startGame" style={{padding: '0.3rem 0.8rem', fontSize: '0.8rem'}} onClick={() => handleJoinRoom(room.roomId)}>Join</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <button className="startGame disabled" style={{marginTop: '1rem', alignSelf: 'center'}} onClick={() => setGameMode(null)}>Back</button>
+          </Display>
+        </DisplayWrapper>
+      </div>
+    );
   }
 
   return (
@@ -52,16 +352,45 @@ const App = () => {
           <FaWater/><Header>Battleship</Header><FaWater/>
         </Title>
       </HeaderWrapper>
+      {gameMode === 'multiplayer' && (
+        <div style={{textAlign: 'center', margin: '0.5rem', fontWeight: 'bold'}}>
+          Room: {roomId} | Status: {multiplayerStatus}
+        </div>
+      )}
       <DisplayWrapper>
         <Display>
           <h2 className={"display"}>{display}</h2>
         </Display>
       </DisplayWrapper>
-      <Boards game={game} updateTurn={updateTurn} turn={turn} init={init} reset={reset} />
+      {game.getWinner === 0 && <Confetti />}
+      <Boards 
+        game={game} 
+        updateTurn={updateTurn} 
+        turn={turn} 
+        init={init} 
+        reset={reset} 
+        gameMode={gameMode}
+        socket={socketRef.current}
+        roomId={roomId}
+        playerIndex={playerIndex}
+        isLocalReady={isLocalReady}
+        isOpponentReady={isOpponentReady}
+        hasOpponent={hasOpponent}
+        opponentName={opponentName}
+        opponentAvatar={opponentAvatar}
+        playerName={playerName}
+        localAvatar={localAvatar}
+      />
       <Buttons>
+        {!init && (
+          <button className="startGame" type="button" onClick={randomizeShips} style={{ marginRight: '1rem' }}>
+            Auto Place
+          </button>
+        )}
         {
-          !init ? <button className="startGame" type="button" onClick={initGame}>Start Game</button>
-          : game.getTurn === 0 || game.getWinner !== -1 ? <button className="startGame" type="button" onClick={restartGame}>Restart Game</button>
+          !init ? (gameMode === 'multiplayer' ? getMultiplayerButton() : <button className="startGame" type="button" onClick={initGame}>Start Game</button>)
+          : (gameMode === 'singleplayer' && (game.getTurn === 0 || game.getWinner !== -1)) || (gameMode === 'multiplayer' && game.getWinner !== -1) ? 
+            <button className="startGame" type="button" onClick={restartGame}>Restart Game</button>
             : <button className="startGame disabled" type="button">Restart Game</button>
         }
       </Buttons>

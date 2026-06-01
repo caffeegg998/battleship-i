@@ -28,6 +28,18 @@ class Game {
     }
   }
 
+  setOpponentShips(ships: {length: number, origin: [number, number], rotated: boolean}[]): void {
+    const board = this.players[1].getBoard;
+    // Clear random ships first
+    const currentShips = [...board.getShips];
+    currentShips.forEach(s => board.removeShip(s.getOrigin));
+    
+    // Place new ships
+    ships.forEach(s => {
+      board.placeShip(s.length, s.origin, s.rotated);
+    });
+  }
+
   get getCurrentPlayer(): Player {
     return this.players[this.currentPlayer];
   }

@@ -25,6 +25,14 @@ class Battleship {
         return this.rotated;
     }
 
+    setOrigin(origin: [number, number]): void {
+        this.origin = origin;
+    }
+
+    setRotated(rotated: boolean): void {
+        this.rotated = rotated;
+    }
+
     hit(part: number): void {
         if(part > this.parts.length - 1) {
             throw new Error("Value higher than ship length");
