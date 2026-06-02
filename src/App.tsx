@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Boards from "./components/Boards";
 import Confetti from "./components/Confetti";
 import Game from "./scripts/Game";
+import { generateHeightMap } from "./scripts/Noise";
 import { Display, DisplayWrapper, Buttons, Header, HeaderWrapper, Title } from "./components/styled_components/AppStyles";
 import { FaWater } from "react-icons/fa";
 import { io, Socket } from "socket.io-client";
@@ -58,6 +59,8 @@ const App = () => {
   const [hasOpponent, setHasOpponent] = useState<boolean>(false);
   const [opponentName, setOpponentName] = useState<string>('');
   const [opponentAvatar, setOpponentAvatar] = useState<string>('');
+  const [mySeed, setMySeed] = useState<number>(0);
+  const [opponentSeed, setOpponentSeed] = useState<number>(0);
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -81,14 +84,24 @@ const App = () => {
         setLobbyRooms(rooms);
       });
 
-      socket.on('player_assigned', ({ index, boardSize }) => {
+      socket.on('player_assigned', ({ index, boardSize, mySeed, opponentSeed }) => {
         setPlayerIndex(index);
         setBoardSize(boardSize);
+        setMySeed(mySeed);
+        setOpponentSeed(opponentSeed);
         setGameMode('multiplayer');
         setMultiplayerStatus('Joined room. Waiting for opponent...');
 
-        // Re-initialize game with correct board size
-        const newGame = new Game(ships, boardSize);
+        // Re-initialize game with correct board size and unique heightmaps
+        const myMapData = generateHeightMap(boardSize, mySeed);
+        const opponentMapData = generateHeightMap(boardSize, opponentSeed);
+        
+        const newGame = new Game(
+          ships, 
+          boardSize, 
+          [myMapData.heightMap, opponentMapData.heightMap],
+          [myMapData.textureUrl, opponentMapData.textureUrl]
+        );
         newGame.getPlayer(0).setName(playerName);
         newGame.getPlayer(0).setAvatar(localAvatar);
 
@@ -231,7 +244,15 @@ const App = () => {
   }
 
   const restartGame = async () => {
-    const newGame = new Game(ships, boardSize);
+    const myMapData = generateHeightMap(boardSize, mySeed);
+    const opponentMapData = generateHeightMap(boardSize, opponentSeed);
+    
+    const newGame = new Game(
+        ships, 
+        boardSize, 
+        [myMapData.heightMap, opponentMapData.heightMap],
+        [myMapData.textureUrl, opponentMapData.textureUrl]
+    );
     if (gameMode === 'multiplayer' && playerIndex === 1) {
         newGame.next();
     }
@@ -297,11 +318,18 @@ const App = () => {
             <Buttons>
               <button className="startGame" onClick={() => {
                 setGameMode('singleplayer');
-                const singleGame = new Game(ships, 10);
+                const s1 = Math.floor(Math.random() * 1000000);
+                const s2 = Math.floor(Math.random() * 1000000);
+                const m1 = generateHeightMap(10, s1);
+                const m2 = generateHeightMap(10, s2);
+                
+                const singleGame = new Game(ships, 10, [m1.heightMap, m2.heightMap]);
                 singleGame.getPlayer(0).setName(playerName);
                 singleGame.getPlayer(0).setAvatar(localAvatar);
                 setGame(singleGame);
                 setBoardSize(10);
+                setMySeed(s1);
+                setOpponentSeed(s2);
                 setReset(true);
                 setTimeout(() => setReset(false), 0);
               }}>Single Player (vs Computer)</button>
@@ -429,6 +457,8 @@ const App = () => {
         opponentAvatar={opponentAvatar}
         playerName={playerName}
         localAvatar={localAvatar}
+        mySeed={mySeed}
+        opponentSeed={opponentSeed}
       />
       <Buttons>
         {!init && (

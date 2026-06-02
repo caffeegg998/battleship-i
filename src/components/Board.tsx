@@ -17,9 +17,10 @@ type BoardProps = {
   updateBoardState?: () => void;
   playerName?: string;
   localAvatar?: string;
+  seed?: number;
 };
 
-const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateBoardState }: BoardProps) => {
+const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateBoardState, seed }: BoardProps) => {
   const [active, setActive] = useState<string>("");
   const [marked, setMarked] = useState<Battleship | null>(null);
   const [hoverCoords, setHoverCoords] = useState<[number, number] | null>(null);
@@ -61,8 +62,6 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
       const isValid = offset.every(off => {
         const tx = hx - off[0];
         const ty = hy - off[1];
-        // The tile must be empty AND not adjacent to other ships
-        // Gameboard.ts already handles the complex validation in getValidTiles or internally
         return validTiles.some(v => v[0] === tx && v[1] === ty);
       });
 
@@ -146,8 +145,10 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   const board = game.getPlayer(player).getBoard;
   const boardShips = board.getShips;
   const size = board.getSize;
+  const heightMap = board.getHeightMap;
+  const textureUrl = board.getTextureUrl;
 
-  // Math for positioning ships accurately over the grid dynamically scaling
+  // Math for positioning items accurately over the grid
   const tileBaseSize = `calc((14rem + 10vw) / ${size})`;
   const tileMargin = "0.1rem";
   const cellSize = `calc(${tileBaseSize} + (${tileMargin} * 2))`;
@@ -156,6 +157,24 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   return (
     <BoardContainer $size={size}>
        <div className={`board-wrapper ${active}`} onMouseLeave={() => setHoverCoords(null)} style={{ position: 'relative' }}>
+         
+         {/* Render Island Canvas as Full-Board Overlay */}
+         {textureUrl && (
+           <div style={{
+              position: 'absolute',
+              left: paddingLeft,
+              top: 0,
+              width: `calc(${size} * ${cellSize})`,
+              height: `calc(${size} * ${cellSize})`,
+              zIndex: 5,
+              pointerEvents: 'none',
+              transform: 'translateY(-4px)',
+              filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))'
+           }}>
+             <img src={textureUrl} alt="Island" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'fill' }} />
+           </div>
+         )}
+
          {/* Render ship textures as overlays */}
          {boardShips.map((ship, idx) => {
            if (player === 1 && !ship.isSunk()) return null;
@@ -233,14 +252,20 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
          {/* Grid Rows */}
          {game.getPlayer(player).getBoard.getTiles.map((row, i) => (
            <div key={i} className="board-row">
-             {row.map((_, j) => (
-               <div
-                 key={`(${i}, ${j})`}
-                 className={getTileClasses(i, j)}
-                 onClick={() => chooseAction(i, j)}
-                 onMouseEnter={() => setHoverCoords([i, j])}
-               />
-             ))}
+             {row.map((_, j) => {
+               const h = heightMap[i][j];
+               let classes = getTileClasses(i, j);
+               if (h > 0.35) classes += " land-tile-logic";
+               
+               return (
+                 <div
+                   key={`(${i}, ${j})`}
+                   className={classes}
+                   onClick={() => chooseAction(i, j)}
+                   onMouseEnter={() => setHoverCoords([i, j])}
+                 />
+               );
+             })}
            </div>
          ))}
       </div>

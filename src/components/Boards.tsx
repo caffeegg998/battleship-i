@@ -24,6 +24,8 @@ type BoardsProps = {
   opponentAvatar?: string;
   playerName?: string;
   localAvatar?: string;
+  mySeed?: number;
+  opponentSeed?: number;
 }
 
 const Boards = ({ 
@@ -42,7 +44,9 @@ const Boards = ({
   opponentName = '', 
   opponentAvatar = '',
   playerName = '',
-  localAvatar = ''
+  localAvatar = '',
+  mySeed = 20,
+  opponentSeed = 20
 }: BoardsProps) => {
   const [timer, setTimer] = useState<number>(30);
   const [showExplosion, setShowExplosion] = useState<boolean>(false);
@@ -201,6 +205,7 @@ const Boards = ({
             gameMode={gameMode}
             playerIndex={playerIndex}
             updateBoardState={updateStatePlayer}
+            seed={mySeed}
           />
           <PlayerProfile name={playerName} avatarUrl={localAvatar} isReady={isLocalReady} align="right" showStatus={!init} />
         </BoardContainer>
@@ -221,6 +226,7 @@ const Boards = ({
             turn={turn}
             init={init}
             reset={reset}
+            seed={opponentSeed}
           />
           <DisplayShips player="computer" ships={shipsComputer} />
         </BoardContainer>

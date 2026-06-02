@@ -41,14 +41,15 @@ io.on('connection', (socket) => {
     socket.join(roomId);
     
     if (!rooms.has(roomId)) {
-      // Room creator sets the board size
+      // Room creator sets the board size and generates unique seeds for both players
       rooms.set(roomId, { 
         players: [], 
         isReady: [false, false], 
         layouts: {}, 
         playerNames: {}, 
         playerAvatars: {},
-        boardSize: boardSize || 10
+        boardSize: boardSize || 10,
+        seeds: [Math.floor(Math.random() * 1000000), Math.floor(Math.random() * 1000000)]
       });
     }
     
@@ -60,7 +61,13 @@ io.on('connection', (socket) => {
       room.playerNames[socket.id] = playerName || `Player ${playerIndex + 1}`;
       room.playerAvatars[socket.id] = avatar || '';
       
-      socket.emit('player_assigned', { index: playerIndex, boardSize: room.boardSize });
+      // Send both seeds, telling the player which one is theirs
+      socket.emit('player_assigned', { 
+        index: playerIndex, 
+        boardSize: room.boardSize,
+        mySeed: room.seeds[playerIndex],
+        opponentSeed: room.seeds[1 - playerIndex]
+      });
       console.log(`User ${socket.id} (${room.playerNames[socket.id]}) joined room ${roomId} as player ${playerIndex} (Size: ${room.boardSize})`);
       
       if (room.players.length === 2) {

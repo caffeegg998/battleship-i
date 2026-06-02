@@ -53,6 +53,13 @@ const BoardContainer = styled.div<{ $size?: number }>`
         background-color: ${({ theme }) => theme.colors.gridBackground};
         border: 2px solid ${({ theme }) => theme.colors.tile_border};
         border-radius: 2px;
+        transition: border 0.2s ease;
+      }
+
+      .land-tile-logic {
+        /* Logical land tiles are visually handled by IslandCanvas overlay */
+        /* We can keep them transparent or subtle */
+        border-color: rgba(0,0,0,0.05);
       }
 
         .ship-not-hit {

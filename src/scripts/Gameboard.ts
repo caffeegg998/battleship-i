@@ -4,13 +4,17 @@ class Gameboard {
   private size: number;
   private tiles: (boolean | Battleship)[][];
   private ships: Battleship[];
+  private heightMap: number[][];
+  private textureUrl: string;
 
-  constructor(size: number) {
+  constructor(size: number, heightMap?: number[][], textureUrl?: string) {
     this.size = size;
     this.tiles = Array.from({ length: size }, () =>
       new Array(size).fill(false),
     );
     this.ships = [];
+    this.heightMap = heightMap || Array.from({ length: size }, () => new Array(size).fill(0));
+    this.textureUrl = textureUrl || "";
   }
 
   get getTiles(): (boolean | Battleship)[][] {
@@ -23,6 +27,14 @@ class Gameboard {
 
   get getShips(): Battleship[] {
     return this.ships;
+  }
+
+  get getHeightMap(): number[][] {
+    return this.heightMap;
+  }
+
+  get getTextureUrl(): string {
+    return this.textureUrl;
   }
 
   get getBoardStates(): { [state: string]: [number, number][] } {
@@ -74,6 +86,9 @@ class Gameboard {
     ];
     for(let i = 0; i < this.size; ++i) {
       for(let j = 0; j < this.size; ++j) {
+        // Cannot place on Land
+        if (this.heightMap[i][j] > 0.35) continue;
+
         if(
           offset.every((off) => {
             if(
@@ -121,25 +136,33 @@ class Gameboard {
     ];
 
     placementOffset.forEach((placement) => {
+      const tx = location[0] - placement[0];
+      const ty = location[1] - placement[1];
+
+      // Block land placement
+      if (this.heightMap[tx] && this.heightMap[tx][ty] > 0.35) {
+        throw new Error("Invalid location. Cannot place ships on land.");
+      }
+
       if(
         !validPlacement.some(
           (tile) =>
-            tile[0] === location[0] - placement[0] &&
-            tile[1] === location[1] - placement[1]
+            tile[0] === tx &&
+            tile[1] === ty
         )
       ) {
         throw new Error("Invalid location.");
       }
       contactOffset.forEach((contact) => {
         if(
-          location[0] - placement[0] + contact[0] < 0 ||
-          location[0] - placement[0] + contact[0] > this.size - 1 ||
-          location[1] - placement[1] + contact[1] < 0 ||
-          location[1] - placement[1] + contact[1] > this.size - 1
+          tx + contact[0] < 0 ||
+          tx + contact[0] > this.size - 1 ||
+          ty + contact[1] < 0 ||
+          ty + contact[1] > this.size - 1
         ) {
           return;
         }
-        if(this.tiles[location[0]-placement[0]+contact[0]][location[1]-placement[1]+contact[1]]) {
+        if(this.tiles[tx + contact[0]][ty + contact[1]]) {
           throw new Error("Invalid location.");
         }
       });
@@ -288,16 +311,21 @@ class Gameboard {
       ];
       partsOffset.forEach((part) => {
         aroundOffset.forEach((around) => {
+          const tx = origin[0] - part[0] + around[0];
+          const ty = origin[1] - part[1] + around[1];
           if(
-            origin[0] - part[0] + around[0] < 0 ||
-            origin[0] - part[0] + around[0] > this.size - 1 ||
-            origin[1] - part[1] + around[1] < 0 ||
-            origin[1] - part[1] + around[1] > this.size - 1
+            tx < 0 ||
+            tx > this.size - 1 ||
+            ty < 0 ||
+            ty > this.size - 1
           ) {
             return;
           }
-          if(!this.tiles[origin[0] - part[0] + around[0]][origin[1] - part[1] + around[1]]) {
-            this.tiles[origin[0] - part[0] + around[0]][origin[1] - part[1] + around[1]] = true;
+          // Don't mark Land as 'true' (missed/hit marker) automatically
+          if (this.heightMap[tx][ty] > 0.35) return;
+
+          if(!this.tiles[tx][ty]) {
+            this.tiles[tx][ty] = true;
           }
         });
       });
