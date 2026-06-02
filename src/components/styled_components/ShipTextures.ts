@@ -14,7 +14,7 @@ export const ShipContainer = styled.div<{ $length: number, $direction: number, $
   width: calc((${({ $length }) => $length} * ((14rem + 10vw) / ${({ $boardSize }) => $boardSize || 10})) + ((${({ $length }) => $length} - 1) * 0.2rem));
   pointer-events: none;
   z-index: 5;
-  filter: drop-shadow(4px 4px 3px rgba(0, 0, 0, 0.4));
+  filter: drop-shadow(2px 1px 2px rgba(0, 0, 0, 1));
   
   transform: rotate(${({ $direction }) => $direction}deg);
   transform-origin: calc(((14rem + 10vw) / ${({ $boardSize }) => $boardSize || 10}) / 2) calc(((14rem + 10vw) / ${({ $boardSize }) => $boardSize || 10}) / 2);
@@ -45,33 +45,40 @@ export const CarrierBase = styled(ShipPart)`
 
 export const CarrierPlatform = styled(ShipPart)`
   background-color: #777;
-  filter: brightness(0.8);
-  clip-path: polygon(2% 36%, 2% 59%, 3% 72%, 6% 72%, 6% 86%, 25% 86%, 25% 83%, 27% 78%, 28% 77%, 29% 80%, 31% 81%, 31% 86%, 39% 86%, 39% 71%, 45% 71%, 45% 86%, 54% 85%, 54% 71%, 60% 71%, 60% 86%, 67% 86%, 74% 69%, 96% 62%, 96% 39%, 75% 32%, 66% 9%, 58% 9%, 53% 15%, 43% 15%, 43% 13%, 41% 12%, 41% 15%, 32% 16%, 31% 12%, 25% 11%, 23% 15%, 21% 14%, 21% 30%, 15% 30%, 16% 15%, 11% 15%, 10% 32%);
+  filter: brightness(0.5);
+  clip-path: polygon(2% 36%, 2% 40%, 3% 72%, 6% 72%, 6% 86%, 25% 86%, 25% 83%, 27% 78%, 28% 77%, 29% 80%, 31% 81%, 31% 86%, 39% 86%, 39% 71%, 45% 71%, 45% 86%, 54% 85%, 54% 71%, 60% 71%, 60% 86%, 67% 86%, 74% 69%, 96% 62%, 96% 39%, 75% 32%, 66% 9%, 58% 9%, 53% 15%, 43% 15%, 43% 13%, 41% 12%, 41% 15%, 32% 16%, 31% 12%, 25% 11%, 23% 15%, 21% 14%, 21% 30%, 15% 30%, 16% 15%, 11% 15%, 10% 32%);
 `;
 
 export const CarrierLines1 = styled(ShipPart)`
-  width: 65%;
-  height: 0;
-  border-top: yellow dashed 2px;
-  transform: rotate(-9deg) translate(5%, 610%);
-  border-radius: 10px;
-`;
+    width: 50%;
+    height: 4.2%;
+    background: repeating-linear-gradient(
+      90deg,
+      yellow 0 4%,
+      transparent 4% 8%
+    );
+    transform: rotate(-9deg) translate(36%, 1700%);
+    border-radius: 10px;
+  `;
 
-export const CarrierLines2 = styled(ShipPart)`
-  width: 65%;
-  height: 0;
-  border-top: grey solid 2px;
-  transform: rotate(-9deg) translate(2%, 460%);
-  border-radius: 100px;
-`;
 
-export const CarrierLines3 = styled(ShipPart)`
-  width: 65%;
-  height: 0px;
-  border-top: grey solid 2px;
-  transform: rotate(-9deg) translate(12%, 800%);
-  border-radius: 10px;
-`;
+
+  export const CarrierLines2 = styled(ShipPart)`
+    width: 62%;
+    height: 6%;
+    background-color: white;
+    transform: rotate(-9deg) translate(7%, 770%);
+    border-radius: 1px;
+  `;
+
+
+  export const CarrierLines3 = styled(ShipPart)`
+    width: 45%;
+    height: 6%;
+    background-color: white;
+    transform: rotate(-9deg) translate(66%, 1470%);
+    border-radius: 1px;
+  `;
 
 // Battleship (Length 4)
 export const BattleshipBase = styled(ShipPart)`

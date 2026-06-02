@@ -5,6 +5,130 @@ const BoardContainer = styled.div<{ $size?: number }>`
   flex-direction: column;
   align-items: center;
 
+  .board-viewport-shell {
+    position: relative;
+    max-width: 100%;
+  }
+
+  .board-axis-y-viewport,
+  .board-axis-x-viewport {
+    position: absolute;
+    z-index: 35;
+    pointer-events: none;
+    overflow: hidden;
+    background-color: ${({ theme }) => theme.colors.gridBackground};
+  }
+
+  .board-axis-y-viewport {
+    left: 0;
+    top: 0;
+    width: 1.5rem;
+  }
+
+  .board-axis-x-viewport {
+    left: 0;
+    bottom: 0;
+    height: 1.5rem;
+    max-width: calc(100vw - 2rem);
+  }
+
+  .board-axis-y-layer,
+  .board-axis-x-layer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  .board-viewport {
+    max-width: calc(100vw - 2rem);
+    position: relative;
+    scrollbar-width: thin;
+  }
+
+  .board-zoom-space {
+    position: relative;
+  }
+
+  .board-viewport.zoomed {
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-radius: 6px;
+    background-color: ${({ theme }) => theme.colors.gridBackground};
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+  }
+
+  .board-minimap {
+    position: absolute;
+    right: 0.6rem;
+    bottom: 0.6rem;
+    width: 6.5rem;
+    aspect-ratio: 1;
+    z-index: 30;
+    overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    border-radius: 4px;
+    background-color: ${({ theme }) => theme.colors.gridBackground};
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+    cursor: pointer;
+  }
+
+  .board-minimap img,
+  .board-minimap-grid {
+    position: absolute;
+    inset: 0;
+  }
+
+  .board-minimap img {
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+  }
+
+  .board-minimap-grid {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.18) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.18) 1px, transparent 1px);
+    background-size:
+      calc(100% / ${({ $size }) => $size || 10}) calc(100% / ${({ $size }) => $size || 10});
+  }
+
+  .board-minimap-viewport {
+    position: absolute;
+    right: auto;
+    bottom: auto;
+    border: 2px solid #ffffff;
+    background-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.24);
+    box-sizing: border-box;
+    pointer-events: none;
+  }
+
+  .board-axis-label {
+    position: absolute;
+    z-index: 14;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+    transform-origin: center;
+  }
+
+  .board-axis-y-label {
+    left: 0;
+    width: 1.5rem;
+    height: 1rem;
+  }
+
+  .board-axis-x-label {
+    top: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
   .board-wrapper {
     opacity: .4;
     
@@ -32,25 +156,14 @@ const BoardContainer = styled.div<{ $size?: number }>`
  
       
       &::before {
-      
-        position: absolute;
-        right: 100%;
-        margin-right: .5rem;
-        top: 50%;
-        transform: translateY(-50%);
-        content: counter(row);
+        display: none;
       }
 
       &:last-child {
        
         .board-tile {
           &::after {
-            position: absolute;
-            top: 110%;
-            left: 50%;
-            transform: translateX(-50%);
-            content: counter(column, upper-latin);
-            
+            display: none;
           }
         }
       }

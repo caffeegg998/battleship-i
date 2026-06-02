@@ -296,7 +296,7 @@ export const generateHeightMap = (size: number, seed: number = 20): { heightMap:
             imgData.data[idx] = 140;
             imgData.data[idx+1] = 192;
             imgData.data[idx+2] = 235;
-            imgData.data[idx+3] = 255;
+            imgData.data[idx+3] = 0;
           } else if (n < 0.3) {
             // shallow water
             imgData.data[idx] = 191;
