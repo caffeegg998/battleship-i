@@ -47,6 +47,7 @@ class Gameboard {
       shipHit: [],
       shipNotHit: [],
       missed: [],
+      landHit: [],
       notShot: [],
     };
 
@@ -58,7 +59,11 @@ class Gameboard {
             states.notShot.push([i, j]);
           }
           else {
-            states.missed.push([i, j]);
+            if (this.heightMap[i] && this.heightMap[i][j] >= 0.3) {
+              states.landHit.push([i, j]);
+            } else {
+              states.missed.push([i, j]);
+            }
           }
         }
         else {

@@ -43,8 +43,12 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
       }
     }
 
-    if (state.missed.some(c => c[0] === x && c[1] === y)) {
+    if (state.missed?.some(c => c[0] === x && c[1] === y)) {
       classes += " missed";
+    }
+
+    if (state.landHit?.some(c => c[0] === x && c[1] === y)) {
+      classes += " land-hit";
     }
 
     // Preview for picked up ship (using squares)
@@ -247,7 +251,85 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
            );
          })()}
 
-         {/* Grid Rows */}
+          {/* Ship hit/sunk markers above texture */}
+          {state.shipHit?.map(([r, c]) => {
+            const tile = game.getPlayer(player).getBoard.getTiles[r][c];
+            const isSunk = typeof tile !== 'boolean' && tile.isSunk();
+            return (
+              <div key={`hit-${r}-${c}`} style={{
+                position: 'absolute',
+                left: `calc(${paddingLeft} + (${c} * ${cellSize}))`,
+                top: `calc((${r} * ${cellSize}))`,
+                width: cellSize,
+                height: cellSize,
+                zIndex: 8,
+                pointerEvents: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <div style={{
+  width: '85%',
+  height: '85%',
+  borderRadius: '2px',
+  // Sử dụng màu RGBA để chỉ làm mờ nền (0.5 là độ mờ 50%)
+  backgroundColor: isSunk ? 'rgba(200, 107, 133, 0.5)' : 'rgba(187, 187, 187, 0.4)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: 'white', // Chữ X vẫn sẽ hiển thị rõ 100%
+  fontWeight: 1000,
+  fontSize: 'clamp(8px, 1.2vw, 16px)',
+  fontFamily: "'Font Awesome 5 Free', sans-serif",
+}}>
+  ✕
+</div>
+              </div>
+            );
+          })}
+
+          {/* Land hit markers above texture */}
+          {state.landHit?.map(([r, c]) => (
+            <div key={`land-${r}-${c}`} style={{
+              position: 'absolute',
+              left: `calc(${paddingLeft} + (${c} * ${cellSize}))`,
+              top: `calc((${r} * ${cellSize}))`,
+              width: cellSize,
+              height: cellSize,
+              zIndex: 9,
+              pointerEvents: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <div style={{
+                width: '40%',
+                height: '40%',
+                borderRadius: '50%',
+                backgroundColor: '#8B5E3C',
+                border: '2px solid #FFE0B2',
+                boxSizing: 'border-box',
+              }} />
+            </div>
+          ))}
+
+          {/* Hover highlight above everything */}
+          {hoverCoords && active && (
+            <div style={{
+              position: 'absolute',
+              left: `calc(${paddingLeft} + (${hoverCoords[1]} * ${cellSize}))`,
+              top: `calc((${hoverCoords[0]} * ${cellSize}))`,
+              width: cellSize,
+              height: cellSize,
+              zIndex: 10,
+              border: '2px solid white',
+              borderRadius: '3px',
+              pointerEvents: 'none',
+              boxSizing: 'border-box',
+            }} />
+          )}
+
+          {/* Grid Rows */}
          {game.getPlayer(player).getBoard.getTiles.map((row, i) => (
            <div key={i} className="board-row">
              {row.map((_, j) => {

@@ -62,7 +62,7 @@ const BoardContainer = styled.div<{ $size?: number }>`
         height: calc((14rem + 10vw) / ${({ $size }) => $size || 10});
         margin: .1rem;
         background-color: ${({ theme }) => theme.colors.gridBackground};
-        border: 1px solid rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 3px;
         font-size: 10px;
         transition: border 0.2s ease;
@@ -119,6 +119,20 @@ const BoardContainer = styled.div<{ $size?: number }>`
             font-size: 7px;
             left: 50%;
             color: white;
+            top: 50%;
+            transform: translate(-50%, -50%);
+          }
+        }
+
+        .land-hit {
+          background-color: #8B5E3C;
+
+          &::before {
+            content: '●';
+            position: absolute;
+            font-size: 10px;
+            left: 50%;
+            color: #FFE0B2;
             top: 50%;
             transform: translate(-50%, -50%);
           }

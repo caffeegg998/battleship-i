@@ -61,9 +61,12 @@ class Player {
             ) {
               return;
             }
-            if(!state.shipHit.find((el) => el[0] === pos[0] + off[0] && el[1] === pos[1] + off[1])
-            && !state.missed.find((el) => el[0] === pos[0] + off[0] && el[1] === pos[1] + off[1])) {
-              attacks.push([pos[0] + off[0], pos[1] + off[1]]);
+            const nr = pos[0] + off[0];
+            const nc = pos[1] + off[1];
+            if(!state.shipHit.find((el) => el[0] === nr && el[1] === nc)
+            && !state.missed.find((el) => el[0] === nr && el[1] === nc)
+            && !state.landHit?.find((el) => el[0] === nr && el[1] === nc)) {
+              attacks.push([nr, nc]);
             }
           });
         });

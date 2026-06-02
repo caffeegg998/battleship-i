@@ -4,7 +4,7 @@ import Confetti from "./components/Confetti";
 import Game from "./scripts/Game";
 import { generateHeightMap } from "./scripts/Noise";
 import { Display, DisplayWrapper, Buttons, Header, HeaderWrapper, Title } from "./components/styled_components/AppStyles";
-import { FaWater } from "react-icons/fa";
+import { FaWater, FaDiceD6, FaRecycle, FaPlay, FaUndo, FaSignOutAlt, FaRobot } from "react-icons/fa";
 import { io, Socket } from "socket.io-client";
 
 const App = () => {
@@ -61,6 +61,8 @@ const App = () => {
   const [opponentAvatar, setOpponentAvatar] = useState<string>('');
   const [mySeed, setMySeed] = useState<number>(0);
   const [opponentSeed, setOpponentSeed] = useState<number>(0);
+  const [autoPlay, setAutoPlay] = useState<boolean>(false);
+  const [autoPlayDelay, setAutoPlayDelay] = useState<number>(400);
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -336,13 +338,14 @@ const App = () => {
 
   const getMultiplayerButton = () => {
     if (isLocalReady) {
-      return <button className="startGame disabled" type="button">Waiting for opponent...</button>;
+      return <button className="startGame disabled" type="button" title="Waiting for opponent..."><FaRecycle /></button>;
     }
-    const buttonText = isOpponentReady ? "Start Game" : "Ready";
-    return <button className="startGame" type="button" onClick={() => {
+    const buttonIcon = isOpponentReady ? <FaPlay /> : <FaDiceD6 />;
+    const buttonTitle = isOpponentReady ? "Start Game" : "Ready";
+    return <button className="startGame" type="button" title={buttonTitle} onClick={() => {
       initGame();
       setIsLocalReady(true);
-    }}>{buttonText}</button>;
+    }}>{buttonIcon}</button>;
   }
 
   if (gameMode === null) {
@@ -356,19 +359,32 @@ const App = () => {
         <DisplayWrapper>
           <Display style={{flexDirection: 'column', gap: '1rem'}}>
             <h2>Select Game Mode</h2>
+            <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+              <label style={{fontWeight: 'bold'}}>Map Size</label>
+              <select 
+                value={boardSize} 
+                onChange={(e) => setBoardSize(parseInt(e.target.value))}
+                style={{padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc'}}
+              >
+                <option value={10}>10 x 10 (Standard)</option>
+                <option value={15}>15 x 15 (Large)</option>
+                <option value={20}>20 x 20 (Massive)</option>
+                <option value={25}>25 x 25 (Epic)</option>
+                <option value={30}>30 x 30 (Gigantic)</option>
+              </select>
+            </div>
             <Buttons>
               <button className="startGame" onClick={() => {
                 setGameMode('singleplayer');
                 const s1 = Math.floor(Math.random() * 1000000);
                 const s2 = Math.floor(Math.random() * 1000000);
-                const m1 = generateHeightMap(10, s1);
-                const m2 = generateHeightMap(10, s2);
+                const m1 = generateHeightMap(boardSize, s1);
+                const m2 = generateHeightMap(boardSize, s2);
                 
-                const singleGame = new Game(ships, 10, [m1.heightMap, m2.heightMap]);
+                const singleGame = new Game(ships, boardSize, [m1.heightMap, m2.heightMap], [m1.textureUrl, m2.textureUrl]);
                 singleGame.getPlayer(0).setName(playerName);
                 singleGame.getPlayer(0).setAvatar(localAvatar);
                 setGame(singleGame);
-                setBoardSize(10);
                 setMySeed(s1);
                 setOpponentSeed(s2);
                 setReset(true);
@@ -412,6 +428,8 @@ const App = () => {
                 <option value={10}>10 x 10 (Standard)</option>
                 <option value={15}>15 x 15 (Large)</option>
                 <option value={20}>20 x 20 (Massive)</option>
+                <option value={25}>25 x 25 (Epic)</option>
+                <option value={30}>30 x 30 (Gigantic)</option>
               </select>
             </div>
 
@@ -475,6 +493,70 @@ const App = () => {
           Room: {roomId} | Map: {boardSize}x{boardSize} | Status: {multiplayerStatus}
         </div>
       )}
+      <Buttons>
+          {!init && (
+            <>
+              <button className="startGame" type="button" onClick={randomizeShips} title="Auto Place">
+                <FaDiceD6 />
+              </button>
+              <button className="startGame" type="button" onClick={regenerateIslands} title="Renew Islands">
+                <FaRecycle />
+              </button>
+            </>
+          )}
+          {init && (
+            <>
+              <button
+                type="button"
+                onClick={() => setAutoPlay(!autoPlay)}
+                title={autoPlay ? "Stop Auto Play" : "Auto Play"}
+                style={{
+                  background: autoPlay ? '#27ae60' : undefined,
+                  border: '2px solid',
+                  borderColor: autoPlay ? '#1e8449' : '#aaa',
+                  color: autoPlay ? 'white' : '#aaa',
+                  cursor: 'pointer',
+                  borderRadius: '5px',
+                  padding: '.5rem .7rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  lineHeight: 1,
+                }}
+              >
+                <FaRobot />
+              </button>
+              {autoPlay && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginLeft: '0.3rem' }}>
+                  <span style={{ fontSize: '0.7rem', color: '#888' }}>🐢</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={2000}
+                    step={50}
+                    value={autoPlayDelay}
+                    onChange={(e) => setAutoPlayDelay(Number(e.target.value))}
+                    style={{ width: '80px', cursor: 'pointer' }}
+                    title={`Delay: ${autoPlayDelay}ms`}
+                  />
+                  <span style={{ fontSize: '0.7rem', color: '#888' }}>🐇</span>
+                  <span style={{ fontSize: '0.65rem', color: '#666', minWidth: '2.5rem' }}>{autoPlayDelay}ms</span>
+                </div>
+              )}
+            </>
+          )}
+        {
+          !init ? (gameMode === 'multiplayer' ? getMultiplayerButton() : <button className="startGame" type="button" onClick={initGame} title="Start Game"><FaPlay /></button>)
+          : (gameMode === 'singleplayer' && (game.getTurn === 0 || game.getWinner !== -1)) || (gameMode === 'multiplayer' && game.getWinner !== -1) ? 
+            <button className="startGame" type="button" onClick={restartGame} title="Restart Game"><FaUndo /></button>
+            : <button className="startGame disabled" type="button" title="Restart Game"><FaUndo /></button>
+        }
+        {gameMode === 'multiplayer' && (
+          <button className="startGame" type="button" onClick={leaveRoom} title="Leave Room" style={{ backgroundColor: '#e74c3c', borderColor: '#c0392b' }}>
+            <FaSignOutAlt />
+          </button>
+        )}
+      </Buttons>
       <DisplayWrapper>
         <Display>
           <h2 className={"display"}>{display}</h2>
@@ -500,30 +582,9 @@ const App = () => {
         localAvatar={localAvatar}
         mySeed={mySeed}
         opponentSeed={opponentSeed}
+        autoPlay={autoPlay}
+        autoPlayDelay={autoPlayDelay}
       />
-      <Buttons>
-        {!init && (
-          <>
-            <button className="startGame" type="button" onClick={randomizeShips} style={{ marginRight: '1rem' }}>
-              Auto Place
-            </button>
-            <button className="startGame" type="button" onClick={regenerateIslands} style={{ marginRight: '1rem' }}>
-              Renew Islands
-            </button>
-          </>
-        )}
-        {
-          !init ? (gameMode === 'multiplayer' ? getMultiplayerButton() : <button className="startGame" type="button" onClick={initGame}>Start Game</button>)
-          : (gameMode === 'singleplayer' && (game.getTurn === 0 || game.getWinner !== -1)) || (gameMode === 'multiplayer' && game.getWinner !== -1) ? 
-            <button className="startGame" type="button" onClick={restartGame}>Restart Game</button>
-            : <button className="startGame disabled" type="button">Restart Game</button>
-        }
-        {gameMode === 'multiplayer' && (
-          <button className="startGame" type="button" onClick={leaveRoom} style={{ marginLeft: '1rem', backgroundColor: '#e74c3c', borderColor: '#c0392b' }}>
-            Leave Room
-          </button>
-        )}
-      </Buttons>
     </div>
   );
 }

@@ -130,7 +130,8 @@ export const generateHeightMap = (size: number, seed: number = 20): { heightMap:
   const noiseScale = 3.0;
 
   // Island shapes scale with board size
-  const base = Math.max(3, Math.floor(size * 0.3));
+  const islandMultiplier = size > 25 ? 0.4 : size > 20 ? 0.35 : 0.3;
+  const base = Math.max(3, Math.floor(size * islandMultiplier));
   const shapes = [
     [base, base],
     [base, base + 1],
@@ -143,7 +144,9 @@ export const generateHeightMap = (size: number, seed: number = 20): { heightMap:
   let numIslands: number;
   if (size <= 10) numIslands = 1;
   else if (size <= 15) numIslands = 3 + Math.floor(twister.random() * 2); // 3-4
-  else numIslands = 4 + Math.floor(twister.random() * 2); // 4-5
+  else if (size <= 20) numIslands = 4 + Math.floor(twister.random() * 2); // 4-5
+  else if (size <= 25) numIslands = 5 + Math.floor(twister.random() * 2); // 5-6
+  else numIslands = 6 + Math.floor(twister.random() * 2); // 6-7
 
   // Place islands without overlapping
   const islands: { centerRow: number; centerCol: number; radiusRow: number; radiusCol: number }[] = [];
@@ -164,6 +167,33 @@ export const generateHeightMap = (size: number, seed: number = 20): { heightMap:
         islands.push({ centerRow: cr, centerCol: cc, radiusRow: rr, radiusCol: rc });
         break;
       }
+    }
+  }
+
+  // Add large continents anchored to corners (only for 20x20+ maps)
+  if (size > 15) {
+    let numContinents: number;
+    if (size <= 20) numContinents = 1 + Math.floor(twister.random() * 2); // 1-2
+    else if (size <= 25) numContinents = 2 + Math.floor(twister.random() * 2); // 2-3
+    else numContinents = 2 + Math.floor(twister.random() * 3); // 2-4
+    const cornerIndices = [0, 1, 2, 3];
+    // Fisher-Yates shuffle
+    for (let i = cornerIndices.length - 1; i > 0; i--) {
+      const j = Math.floor(twister.random() * (i + 1));
+      [cornerIndices[i], cornerIndices[j]] = [cornerIndices[j], cornerIndices[i]];
+    }
+    for (let c = 0; c < numContinents; c++) {
+      const ci = cornerIndices[c];
+      let cr: number, cc: number;
+      const inset = 2;
+      switch (ci) {
+        case 0: cr = inset; cc = inset; break;
+        case 1: cr = inset; cc = size - 1 - inset; break;
+        case 2: cr = size - 1 - inset; cc = inset; break;
+        default: cr = size - 1 - inset; cc = size - 1 - inset; break;
+      }
+      const continentR = 8 + Math.floor(twister.random() * 5); // 8-12
+      islands.push({ centerRow: cr, centerCol: cc, radiusRow: continentR, radiusCol: continentR });
     }
   }
 
@@ -293,9 +323,9 @@ export const generateHeightMap = (size: number, seed: number = 20): { heightMap:
             imgData.data[idx+3] = 255;
           } else if (n < 0.85) {
             // rock
-            imgData.data[idx] = 255;
-            imgData.data[idx+1] = 249;
-            imgData.data[idx+2] = 210;
+            imgData.data[idx] = 179;
+            imgData.data[idx+1] = 145;
+            imgData.data[idx+2] = 104;
             imgData.data[idx+3] = 255;
           } else {
             // snow

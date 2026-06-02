@@ -141,6 +141,7 @@ test('returns correct state for empty board', () => {
     shipHit: [],
     shipNotHit: [],
     missed: [],
+    landHit: [],
     notShot: [
       [0, 0],
       [0, 1],

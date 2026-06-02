@@ -45,18 +45,24 @@ const Display = styled.div`
 const Buttons = styled.div`
   display: flex;
   justify-content: center;
-  margin: 1rem;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
 
   .startGame {
     cursor: pointer;
     font-family: "Montserrat", sans-serif;
-    padding: .7rem 1.4rem;
+    padding: .5rem .7rem;
     border: 2px solid ${({ theme }) => theme.colors.displayBorder};
     color: ${({ theme }) => theme.colors.displayBorder};
     border-radius: 5px;
     font-size: 1rem;
     font-weight: 600;
     background-color: ${({ theme }) => theme.colors.background};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
     &:hover {
       color: dimgray;
       border-color: dimgray;
