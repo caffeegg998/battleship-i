@@ -158,7 +158,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
     <BoardContainer $size={size}>
        <div className={`board-wrapper ${active}`} onMouseLeave={() => setHoverCoords(null)} style={{ position: 'relative' }}>
          
-         {/* Render Island Canvas as Full-Board Overlay */}
+         {/* Render Island Canvas as Full-Board Overlay - Grounded to grid */}
          {textureUrl && (
            <div style={{
               position: 'absolute',
@@ -167,9 +167,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
               width: `calc(${size} * ${cellSize})`,
               height: `calc(${size} * ${cellSize})`,
               zIndex: 5,
-              pointerEvents: 'none',
-              transform: 'translateY(-4px)',
-              filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))'
+              pointerEvents: 'none'
            }}>
              <img src={textureUrl} alt="Island" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'fill' }} />
            </div>
@@ -255,7 +253,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
              {row.map((_, j) => {
                const h = heightMap[i][j];
                let classes = getTileClasses(i, j);
-               if (h > 0.35) classes += " land-tile-logic";
+                if (h >= 0.3) classes += " land-tile-logic";
                
                return (
                  <div

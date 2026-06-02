@@ -7,6 +7,7 @@ const BoardContainer = styled.div<{ $size?: number }>`
 
   .board-wrapper {
     opacity: .4;
+    
     position: relative; /* Container for absolute ships */
     display: flex;
     flex-direction: column;
@@ -17,13 +18,21 @@ const BoardContainer = styled.div<{ $size?: number }>`
     font-weight: 700;
 
     .board-row {
+    
+      background-color: ${({ theme }) => theme.colors.gridBackground};
       display: flex;
       flex-direction: row;
       counter-increment: row;
       counter-reset: column;
       position: relative;
+      font-size: 10px;
 
+       
+
+ 
+      
       &::before {
+      
         position: absolute;
         right: 100%;
         margin-right: .5rem;
@@ -33,6 +42,7 @@ const BoardContainer = styled.div<{ $size?: number }>`
       }
 
       &:last-child {
+       
         .board-tile {
           &::after {
             position: absolute;
@@ -40,6 +50,7 @@ const BoardContainer = styled.div<{ $size?: number }>`
             left: 50%;
             transform: translateX(-50%);
             content: counter(column, upper-latin);
+            
           }
         }
       }
@@ -51,15 +62,15 @@ const BoardContainer = styled.div<{ $size?: number }>`
         height: calc((14rem + 10vw) / ${({ $size }) => $size || 10});
         margin: .1rem;
         background-color: ${({ theme }) => theme.colors.gridBackground};
-        border: 2px solid ${({ theme }) => theme.colors.tile_border};
-        border-radius: 2px;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        border-radius: 3px;
+        font-size: 10px;
         transition: border 0.2s ease;
       }
 
       .land-tile-logic {
-        /* Logical land tiles are visually handled by IslandCanvas overlay */
-        /* We can keep them transparent or subtle */
-        border-color: rgba(0,0,0,0.05);
+        /* Logical land tiles are visually handled by texture overlay */
+        border-color: transparent;
       }
 
         .ship-not-hit {
@@ -98,15 +109,16 @@ const BoardContainer = styled.div<{ $size?: number }>`
         }
 
         .missed {
-          background-color: #bce6eb;
+          background-color: #2c8af5;
 
           &::before {
-            content: '\\f111';
+            content: '💣';
             position: absolute;
             font-family: 'Font Awesome 5 Free', sans-serif;
             font-weight: 1000;
             font-size: 7px;
             left: 50%;
+            color: white;
             top: 50%;
             transform: translate(-50%, -50%);
           }
@@ -156,7 +168,7 @@ const BoardContainer = styled.div<{ $size?: number }>`
       .board-tile {
 
         &:hover {
-          border: 2px solid #878891;
+          border: 1px solid #ffffff;
           cursor: pointer;
         }
       }

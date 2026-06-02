@@ -127,6 +127,23 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('attack', loc);
   });
 
+  socket.on('renew_islands', ({ roomId, newSeed, playerName, avatar }) => {
+    const room = rooms.get(roomId);
+    if (!room) return;
+    const playerIndex = room.players.indexOf(socket.id);
+    if (playerIndex !== -1) {
+      room.seeds[playerIndex] = newSeed;
+      room.playerNames[socket.id] = playerName || room.playerNames[socket.id];
+      room.playerAvatars[socket.id] = avatar || room.playerAvatars[socket.id];
+      socket.to(roomId).emit('opponent_renewed_islands', { 
+        playerIndex, 
+        newSeed,
+        opponentName: room.playerNames[socket.id],
+        opponentAvatar: room.playerAvatars[socket.id]
+      });
+    }
+  });
+
   socket.on('restart_game', (roomId, callback) => {
     const room = rooms.get(roomId);
     if (room) {

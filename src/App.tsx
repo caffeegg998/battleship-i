@@ -156,6 +156,15 @@ const App = () => {
         setMultiplayerStatus('Game Started!');
       });
 
+      socket.on('opponent_renewed_islands', ({ playerIndex, newSeed }) => {
+        const mapData = generateHeightMap(boardSize, newSeed);
+        game.getPlayer(1).getBoard.setHeightMap(mapData.heightMap, mapData.textureUrl);
+        setOpponentSeed(newSeed);
+        setGame(Object.assign(Object.create(Object.getPrototypeOf(game)), game));
+        setReset(true);
+        setTimeout(() => setReset(false), 0);
+      });
+
       socket.on('opponent_disconnected', () => {
         alert('Opponent disconnected');
         window.location.reload();
@@ -172,6 +181,7 @@ const App = () => {
         socket.off('all_players_connected');
         socket.off('opponent_ready');
         socket.off('game_start');
+        socket.off('opponent_renewed_islands');
         socket.off('opponent_disconnected');
         socket.off('error');
       };
@@ -223,6 +233,37 @@ const App = () => {
       setReset(false);
     }
   }
+
+  const regenerateIslands = () => {
+    const s1 = Math.floor(Math.random() * 1000000);
+    const m1 = generateHeightMap(boardSize, s1);
+    const opponentBoard = game.getPlayer(1).getBoard;
+    let opponentMapData = opponentBoard.getHeightMap;
+    let opponentTextureUrl = opponentBoard.getTextureUrl;
+
+    if (gameMode === 'multiplayer' && socketRef.current && roomId) {
+      socketRef.current.emit('renew_islands', { 
+        roomId, 
+        newSeed: s1,
+        playerName,
+        avatar: localAvatar
+      });
+      opponentMapData = game.getPlayer(1).getBoard.getHeightMap;
+      opponentTextureUrl = game.getPlayer(1).getBoard.getTextureUrl;
+    }
+
+    const newGame = new Game(ships, boardSize, [m1.heightMap, opponentMapData], [m1.textureUrl, opponentTextureUrl]);
+    newGame.getPlayer(0).setName(game.getPlayer(0).getName);
+    newGame.getPlayer(0).setAvatar(game.getPlayer(0).getAvatar);
+    newGame.getPlayer(1).setName(game.getPlayer(1).getName);
+    newGame.getPlayer(1).setAvatar(game.getPlayer(1).getAvatar);
+    setMySeed(s1);
+    setGame(newGame);
+    setReset(true);
+    setTimeout(() => setReset(false), 0);
+    setDisplay('Move/Rotate ships');
+    setInit(false);
+  };
 
   const randomizeShips = () => {
     const board = game.getPlayer(0).getBoard;
@@ -462,9 +503,14 @@ const App = () => {
       />
       <Buttons>
         {!init && (
-          <button className="startGame" type="button" onClick={randomizeShips} style={{ marginRight: '1rem' }}>
-            Auto Place
-          </button>
+          <>
+            <button className="startGame" type="button" onClick={randomizeShips} style={{ marginRight: '1rem' }}>
+              Auto Place
+            </button>
+            <button className="startGame" type="button" onClick={regenerateIslands} style={{ marginRight: '1rem' }}>
+              Renew Islands
+            </button>
+          </>
         )}
         {
           !init ? (gameMode === 'multiplayer' ? getMultiplayerButton() : <button className="startGame" type="button" onClick={initGame}>Start Game</button>)

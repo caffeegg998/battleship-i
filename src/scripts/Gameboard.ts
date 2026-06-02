@@ -33,6 +33,11 @@ class Gameboard {
     return this.heightMap;
   }
 
+  setHeightMap(heightMap: number[][], textureUrl: string): void {
+    this.heightMap = heightMap;
+    this.textureUrl = textureUrl;
+  }
+
   get getTextureUrl(): string {
     return this.textureUrl;
   }
@@ -87,7 +92,7 @@ class Gameboard {
     for(let i = 0; i < this.size; ++i) {
       for(let j = 0; j < this.size; ++j) {
         // Cannot place on Land
-        if (this.heightMap[i][j] > 0.35) continue;
+        if (this.heightMap[i][j] >= 0.3) continue;
 
         if(
           offset.every((off) => {
@@ -140,7 +145,7 @@ class Gameboard {
       const ty = location[1] - placement[1];
 
       // Block land placement
-      if (this.heightMap[tx] && this.heightMap[tx][ty] > 0.35) {
+      if (this.heightMap[tx] && this.heightMap[tx][ty] >= 0.3) {
         throw new Error("Invalid location. Cannot place ships on land.");
       }
 
@@ -322,7 +327,7 @@ class Gameboard {
             return;
           }
           // Don't mark Land as 'true' (missed/hit marker) automatically
-          if (this.heightMap[tx][ty] > 0.35) return;
+          if (this.heightMap[tx][ty] >= 0.3) return;
 
           if(!this.tiles[tx][ty]) {
             this.tiles[tx][ty] = true;
