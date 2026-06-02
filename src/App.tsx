@@ -2,15 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import Boards from "./components/Boards";
 import Confetti from "./components/Confetti";
 import Game from "./scripts/Game";
+import { generateHeightMap } from "./scripts/Noise";
 import { Display, DisplayWrapper, Buttons, Header, HeaderWrapper, Title } from "./components/styled_components/AppStyles";
-import { FaWater } from "react-icons/fa";
+import { FaWater, FaDiceD6, FaRecycle, FaPlay, FaUndo, FaSignOutAlt, FaRobot } from "react-icons/fa";
 import { io, Socket } from "socket.io-client";
 
 const App = () => {
   const ships: number[] = [5, 4, 3, 3, 2];
+  const [boardSize, setBoardSize] = useState<number>(10);
   const [game, setGame] = useState<Game>(new Game(ships, 10));
-  
-  
   const [display, setDisplay] = useState<string>('Move/Rotate ships');
   const [turn, setTurn] = useState<0 | 1>(game.getTurn);
   const [init, setInit] = useState<boolean>(game.getInit);
@@ -25,7 +25,7 @@ const App = () => {
   const [localAvatar, setLocalAvatar] = useState<string>(() => {
     return localStorage.getItem('battleship_localAvatar') || '';
   });
-  
+
   // Initialize random avatar if not persisted
   useEffect(() => {
     if (!localAvatar) {
@@ -51,7 +51,7 @@ const App = () => {
     }
   }, [localAvatar]);
 
-  const [lobbyRooms, setLobbyRooms] = useState<{roomId: string, hostName: string}[]>([]);
+  const [lobbyRooms, setLobbyRooms] = useState<{roomId: string, hostName: string, boardSize: number}[]>([]);
   const [playerIndex, setPlayerIndex] = useState<number | null>(null);
   const [multiplayerStatus, setMultiplayerStatus] = useState<string>('');
   const [isOpponentReady, setIsOpponentReady] = useState<boolean>(false);
@@ -59,6 +59,10 @@ const App = () => {
   const [hasOpponent, setHasOpponent] = useState<boolean>(false);
   const [opponentName, setOpponentName] = useState<string>('');
   const [opponentAvatar, setOpponentAvatar] = useState<string>('');
+  const [mySeed, setMySeed] = useState<number>(0);
+  const [opponentSeed, setOpponentSeed] = useState<number>(0);
+  const [autoPlay, setAutoPlay] = useState<boolean>(false);
+  const [autoPlayDelay, setAutoPlayDelay] = useState<number>(400);
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -82,15 +86,35 @@ const App = () => {
         setLobbyRooms(rooms);
       });
 
-      socket.on('player_assigned', (index: number) => {
+      socket.on('player_assigned', ({ index, boardSize, mySeed, opponentSeed }) => {
         setPlayerIndex(index);
+        setBoardSize(boardSize);
+        setMySeed(mySeed);
+        setOpponentSeed(opponentSeed);
         setGameMode('multiplayer');
         setMultiplayerStatus('Joined room. Waiting for opponent...');
+
+        // Re-initialize game with correct board size and unique heightmaps
+        const myMapData = generateHeightMap(boardSize, mySeed);
+        const opponentMapData = generateHeightMap(boardSize, opponentSeed);
+        
+        const newGame = new Game(
+          ships, 
+          boardSize, 
+          [myMapData.heightMap, opponentMapData.heightMap],
+          [myMapData.textureUrl, opponentMapData.textureUrl]
+        );
+        newGame.getPlayer(0).setName(playerName);
+        newGame.getPlayer(0).setAvatar(localAvatar);
+
         if (index === 1) {
-            game.next();
-            setTurn(game.getTurn);
+            newGame.next();
+            setTurn(newGame.getTurn);
             setHasOpponent(true); // If we are player 1, the host (player 0) is already here
         }
+        setGame(newGame);
+        setReset(true);
+        setTimeout(() => setReset(false), 0);
       });
 
       socket.on('all_players_connected', ({ opponentName, opponentAvatar }) => {
@@ -113,6 +137,11 @@ const App = () => {
         setMultiplayerStatus('Opponent is Ready!');
       });
 
+      socket.on('opponent_unready', () => {
+        setIsOpponentReady(false);
+        setMultiplayerStatus(prev => prev === 'Opponent is Ready!' ? 'Connected. Place your ships!' : prev);
+      });
+
       socket.on('game_start', ({ opponentShips, opponentName, opponentAvatar }) => {
         game.setOpponentShips(opponentShips);
         if (opponentName) {
@@ -127,6 +156,15 @@ const App = () => {
         updateInit();
         updateDisplay();
         setMultiplayerStatus('Game Started!');
+      });
+
+      socket.on('opponent_renewed_islands', ({ playerIndex, newSeed }) => {
+        const mapData = generateHeightMap(boardSize, newSeed);
+        game.getPlayer(1).getBoard.setHeightMap(mapData.heightMap, mapData.textureUrl);
+        setOpponentSeed(newSeed);
+        setGame(Object.assign(Object.create(Object.getPrototypeOf(game)), game));
+        setReset(true);
+        setTimeout(() => setReset(false), 0);
       });
 
       socket.on('opponent_disconnected', () => {
@@ -145,11 +183,12 @@ const App = () => {
         socket.off('all_players_connected');
         socket.off('opponent_ready');
         socket.off('game_start');
+        socket.off('opponent_renewed_islands');
         socket.off('opponent_disconnected');
         socket.off('error');
       };
     }
-  }, [gameMode, game]);
+  }, [gameMode, game, playerName, localAvatar]);
 
   const updateDisplay = () => {
     if (!game.getInit) {
@@ -184,7 +223,8 @@ const App = () => {
       const shipsData = game.getPlayer(0).getBoard.getShips.map(s => ({
         length: s.getLength,
         origin: s.getOrigin,
-        rotated: s.getRotated
+        direction: s.getDirection,
+        shipType: s.shipType
       }));
       socketRef.current?.emit('ships_ready', { roomId, ships: shipsData });
       setMultiplayerStatus('Waiting for opponent to be ready...');
@@ -195,6 +235,37 @@ const App = () => {
       setReset(false);
     }
   }
+
+  const regenerateIslands = () => {
+    const s1 = Math.floor(Math.random() * 1000000);
+    const m1 = generateHeightMap(boardSize, s1);
+    const opponentBoard = game.getPlayer(1).getBoard;
+    let opponentMapData = opponentBoard.getHeightMap;
+    let opponentTextureUrl = opponentBoard.getTextureUrl;
+
+    if (gameMode === 'multiplayer' && socketRef.current && roomId) {
+      socketRef.current.emit('renew_islands', { 
+        roomId, 
+        newSeed: s1,
+        playerName,
+        avatar: localAvatar
+      });
+      opponentMapData = game.getPlayer(1).getBoard.getHeightMap;
+      opponentTextureUrl = game.getPlayer(1).getBoard.getTextureUrl;
+    }
+
+    const newGame = new Game(ships, boardSize, [m1.heightMap, opponentMapData], [m1.textureUrl, opponentTextureUrl]);
+    newGame.getPlayer(0).setName(game.getPlayer(0).getName);
+    newGame.getPlayer(0).setAvatar(game.getPlayer(0).getAvatar);
+    newGame.getPlayer(1).setName(game.getPlayer(1).getName);
+    newGame.getPlayer(1).setAvatar(game.getPlayer(1).getAvatar);
+    setMySeed(s1);
+    setGame(newGame);
+    setReset(true);
+    setTimeout(() => setReset(false), 0);
+    setDisplay('Move/Rotate ships');
+    setInit(false);
+  };
 
   const randomizeShips = () => {
     const board = game.getPlayer(0).getBoard;
@@ -208,12 +279,27 @@ const App = () => {
     setTimeout(() => setReset(true), 0);
   }
 
+  const leaveRoom = () => {
+    if (socketRef.current && roomId) {
+      socketRef.current.emit('leave_room', roomId);
+    }
+    window.location.reload();
+  }
+
   const restartGame = async () => {
-    const newGame = new Game(ships, 10);
+    const myMapData = generateHeightMap(boardSize, mySeed);
+    const opponentMapData = generateHeightMap(boardSize, opponentSeed);
+    
+    const newGame = new Game(
+        ships, 
+        boardSize, 
+        [myMapData.heightMap, opponentMapData.heightMap],
+        [myMapData.textureUrl, opponentMapData.textureUrl]
+    );
     if (gameMode === 'multiplayer' && playerIndex === 1) {
         newGame.next();
     }
-    
+
     // Preserve names
     newGame.getPlayer(0).setName(game.getPlayer(0).getName);
     newGame.getPlayer(1).setName(game.getPlayer(1).getName);
@@ -224,37 +310,42 @@ const App = () => {
     setTurn(newGame.getTurn);
     setDisplay("Move/Rotate ships");
     setInit(false);
-    
+
     if (gameMode === 'multiplayer') {
         setIsLocalReady(false);
-        setIsOpponentReady(false);
         setMultiplayerStatus('Connected. Re-place ships and click Ready.');
-        socketRef.current?.emit('restart_game', roomId);
+        socketRef.current?.emit('restart_game', roomId, (opponentReady: boolean) => {
+            setIsOpponentReady(opponentReady);
+            if (opponentReady) {
+                setMultiplayerStatus('Opponent is Ready!');
+            }
+        });
     }
   }
 
-  const handleJoinRoom = (idToJoin: string) => {
+  const handleJoinRoom = (idToJoin: string, selectedSize: number = boardSize) => {
     setRoomId(idToJoin);
     if (socketRef.current) {
       game.getPlayer(0).setName(playerName);
-      socketRef.current.emit('join_room', { roomId: idToJoin, playerName, avatar: localAvatar });
+      socketRef.current.emit('join_room', { roomId: idToJoin, playerName, avatar: localAvatar, boardSize: selectedSize });
     }
   }
 
   const createRoom = () => {
     const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-    handleJoinRoom(newRoomId);
+    handleJoinRoom(newRoomId, boardSize);
   }
 
   const getMultiplayerButton = () => {
     if (isLocalReady) {
-      return <button className="startGame disabled" type="button">Waiting for opponent...</button>;
+      return <button className="startGame disabled" type="button" title="Waiting for opponent..."><FaRecycle /></button>;
     }
-    const buttonText = isOpponentReady ? "Start Game" : "Ready";
-    return <button className="startGame" type="button" onClick={() => {
+    const buttonIcon = isOpponentReady ? <FaPlay /> : <FaDiceD6 />;
+    const buttonTitle = isOpponentReady ? "Start Game" : "Ready";
+    return <button className="startGame" type="button" title={buttonTitle} onClick={() => {
       initGame();
       setIsLocalReady(true);
-    }}>{buttonText}</button>;
+    }}>{buttonIcon}</button>;
   }
 
   if (gameMode === null) {
@@ -268,8 +359,37 @@ const App = () => {
         <DisplayWrapper>
           <Display style={{flexDirection: 'column', gap: '1rem'}}>
             <h2>Select Game Mode</h2>
+            <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+              <label style={{fontWeight: 'bold'}}>Map Size</label>
+              <select 
+                value={boardSize} 
+                onChange={(e) => setBoardSize(parseInt(e.target.value))}
+                style={{padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc'}}
+              >
+                <option value={10}>10 x 10 (Standard)</option>
+                <option value={15}>15 x 15 (Large)</option>
+                <option value={20}>20 x 20 (Massive)</option>
+                <option value={25}>25 x 25 (Epic)</option>
+                <option value={30}>30 x 30 (Gigantic)</option>
+              </select>
+            </div>
             <Buttons>
-              <button className="startGame" onClick={() => setGameMode('singleplayer')}>Single Player (vs Computer)</button>
+              <button className="startGame" onClick={() => {
+                setGameMode('singleplayer');
+                const s1 = Math.floor(Math.random() * 1000000);
+                const s2 = Math.floor(Math.random() * 1000000);
+                const m1 = generateHeightMap(boardSize, s1);
+                const m2 = generateHeightMap(boardSize, s2);
+                
+                const singleGame = new Game(ships, boardSize, [m1.heightMap, m2.heightMap], [m1.textureUrl, m2.textureUrl]);
+                singleGame.getPlayer(0).setName(playerName);
+                singleGame.getPlayer(0).setAvatar(localAvatar);
+                setGame(singleGame);
+                setMySeed(s1);
+                setOpponentSeed(s2);
+                setReset(true);
+                setTimeout(() => setReset(false), 0);
+              }}>Single Player (vs Computer)</button>
               <button className="startGame" onClick={() => setGameMode('lobby')}>Multiplayer</button>
             </Buttons>
           </Display>
@@ -297,7 +417,22 @@ const App = () => {
                 style={{padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc'}}
               />
             </div>
-            
+
+            <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem'}}>
+              <label style={{fontWeight: 'bold'}}>Map Size (Host)</label>
+              <select 
+                value={boardSize} 
+                onChange={(e) => setBoardSize(parseInt(e.target.value))}
+                style={{padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc'}}
+              >
+                <option value={10}>10 x 10 (Standard)</option>
+                <option value={15}>15 x 15 (Large)</option>
+                <option value={20}>20 x 20 (Massive)</option>
+                <option value={25}>25 x 25 (Epic)</option>
+                <option value={30}>30 x 30 (Gigantic)</option>
+              </select>
+            </div>
+
             <Buttons style={{margin: '1rem 0'}}>
               <button className="startGame" onClick={createRoom} style={{width: '100%'}}>Create New Room</button>
             </Buttons>
@@ -329,7 +464,8 @@ const App = () => {
                     <li key={idx} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', backgroundColor: '#f9f9f9', borderRadius: '4px'}}>
                       <div>
                         <strong>{room.roomId}</strong><br/>
-                        <small>Host: {room.hostName}</small>
+                        <small>Host: {room.hostName}</small><br/>
+                        <small>Map: {room.boardSize}x{room.boardSize}</small>
                       </div>
                       <button className="startGame" style={{padding: '0.3rem 0.8rem', fontSize: '0.8rem'}} onClick={() => handleJoinRoom(room.roomId)}>Join</button>
                     </li>
@@ -354,9 +490,73 @@ const App = () => {
       </HeaderWrapper>
       {gameMode === 'multiplayer' && (
         <div style={{textAlign: 'center', margin: '0.5rem', fontWeight: 'bold'}}>
-          Room: {roomId} | Status: {multiplayerStatus}
+          Room: {roomId} | Map: {boardSize}x{boardSize} | Status: {multiplayerStatus}
         </div>
       )}
+      <Buttons>
+          {!init && (
+            <>
+              <button className="startGame" type="button" onClick={randomizeShips} title="Auto Place">
+                <FaDiceD6 />
+              </button>
+              <button className="startGame" type="button" onClick={regenerateIslands} title="Renew Islands">
+                <FaRecycle />
+              </button>
+            </>
+          )}
+          {init && (
+            <>
+              <button
+                type="button"
+                onClick={() => setAutoPlay(!autoPlay)}
+                title={autoPlay ? "Stop Auto Play" : "Auto Play"}
+                style={{
+                  background: autoPlay ? '#27ae60' : undefined,
+                  border: '2px solid',
+                  borderColor: autoPlay ? '#1e8449' : '#aaa',
+                  color: autoPlay ? 'white' : '#aaa',
+                  cursor: 'pointer',
+                  borderRadius: '5px',
+                  padding: '.5rem .7rem',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  lineHeight: 1,
+                }}
+              >
+                <FaRobot />
+              </button>
+              {autoPlay && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginLeft: '0.3rem' }}>
+                  <span style={{ fontSize: '0.7rem', color: '#888' }}>🐢</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={2000}
+                    step={50}
+                    value={autoPlayDelay}
+                    onChange={(e) => setAutoPlayDelay(Number(e.target.value))}
+                    style={{ width: '80px', cursor: 'pointer' }}
+                    title={`Delay: ${autoPlayDelay}ms`}
+                  />
+                  <span style={{ fontSize: '0.7rem', color: '#888' }}>🐇</span>
+                  <span style={{ fontSize: '0.65rem', color: '#666', minWidth: '2.5rem' }}>{autoPlayDelay}ms</span>
+                </div>
+              )}
+            </>
+          )}
+        {
+          !init ? (gameMode === 'multiplayer' ? getMultiplayerButton() : <button className="startGame" type="button" onClick={initGame} title="Start Game"><FaPlay /></button>)
+          : (gameMode === 'singleplayer' && (game.getTurn === 0 || game.getWinner !== -1)) || (gameMode === 'multiplayer' && game.getWinner !== -1) ? 
+            <button className="startGame" type="button" onClick={restartGame} title="Restart Game"><FaUndo /></button>
+            : <button className="startGame disabled" type="button" title="Restart Game"><FaUndo /></button>
+        }
+        {gameMode === 'multiplayer' && (
+          <button className="startGame" type="button" onClick={leaveRoom} title="Leave Room" style={{ backgroundColor: '#e74c3c', borderColor: '#c0392b' }}>
+            <FaSignOutAlt />
+          </button>
+        )}
+      </Buttons>
       <DisplayWrapper>
         <Display>
           <h2 className={"display"}>{display}</h2>
@@ -380,22 +580,14 @@ const App = () => {
         opponentAvatar={opponentAvatar}
         playerName={playerName}
         localAvatar={localAvatar}
+        mySeed={mySeed}
+        opponentSeed={opponentSeed}
+        autoPlay={autoPlay}
+        autoPlayDelay={autoPlayDelay}
       />
-      <Buttons>
-        {!init && (
-          <button className="startGame" type="button" onClick={randomizeShips} style={{ marginRight: '1rem' }}>
-            Auto Place
-          </button>
-        )}
-        {
-          !init ? (gameMode === 'multiplayer' ? getMultiplayerButton() : <button className="startGame" type="button" onClick={initGame}>Start Game</button>)
-          : (gameMode === 'singleplayer' && (game.getTurn === 0 || game.getWinner !== -1)) || (gameMode === 'multiplayer' && game.getWinner !== -1) ? 
-            <button className="startGame" type="button" onClick={restartGame}>Restart Game</button>
-            : <button className="startGame disabled" type="button">Restart Game</button>
-        }
-      </Buttons>
     </div>
   );
 }
 
 export default App;
+

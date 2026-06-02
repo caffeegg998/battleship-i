@@ -8,11 +8,11 @@ class Game {
   private initialized: boolean;
   private winner: -1 | 0 | 1;
 
-  constructor(shipSizes: number[], size: number) {
+  constructor(shipSizes: number[], size: number, heightMaps?: number[][][], textureUrls?: string[]) {
     this.shipSizes = shipSizes;
     this.players = [
-      new Player(new Gameboard(size), "Player"),
-      new Player(new Gameboard(size), "Computer")
+      new Player(new Gameboard(size, heightMaps ? heightMaps[0] : undefined, textureUrls ? textureUrls[0] : undefined), "Player"),
+      new Player(new Gameboard(size, heightMaps ? heightMaps[1] : undefined, textureUrls ? textureUrls[1] : undefined), "Computer")
     ];
     this.currentPlayer = 0;
     this.initialized = false;
@@ -28,7 +28,7 @@ class Game {
     }
   }
 
-  setOpponentShips(ships: {length: number, origin: [number, number], rotated: boolean}[]): void {
+  setOpponentShips(ships: {length: number, origin: [number, number], direction: number, shipType: string}[]): void {
     const board = this.players[1].getBoard;
     // Clear random ships first
     const currentShips = [...board.getShips];
@@ -36,7 +36,7 @@ class Game {
     
     // Place new ships
     ships.forEach(s => {
-      board.placeShip(s.length, s.origin, s.rotated);
+      board.placeShip(s.length, s.origin, s.direction, s.shipType);
     });
   }
 

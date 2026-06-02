@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Board from "./Board";
 import DisplayShips from "./DisplayShips";
 import Game from "../scripts/Game";
@@ -24,6 +24,10 @@ type BoardsProps = {
   opponentAvatar?: string;
   playerName?: string;
   localAvatar?: string;
+  mySeed?: number;
+  opponentSeed?: number;
+  autoPlay?: boolean;
+  autoPlayDelay?: number;
 }
 
 const Boards = ({ 
@@ -42,10 +46,17 @@ const Boards = ({
   opponentName = '', 
   opponentAvatar = '',
   playerName = '',
-  localAvatar = ''
+  localAvatar = '',
+  mySeed = 20,
+  opponentSeed = 20,
+  autoPlay = false,
+  autoPlayDelay = 400,
 }: BoardsProps) => {
   const [timer, setTimer] = useState<number>(30);
   const [showExplosion, setShowExplosion] = useState<boolean>(false);
+  const autoPlayRef = useRef(autoPlay);
+  autoPlayRef.current = autoPlay;
+  const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [statePlayer, setStatePlayer] = useState<{[state: string]: [number, number][]}>(
     game.getPlayer(0).getBoard.getBoardStates
   );
@@ -79,6 +90,18 @@ const Boards = ({
         setTimeout(resolve, Math.floor(Math.random() * (max - min)) + min),
       );
     }
+
+    const scheduleAutoPlay = () => {
+      if (autoPlayRef.current && game.getWinner === -1) {
+        const loc = game.getPlayer(0).chooseAttack(game.getPlayer(1).getBoard) as [number, number] | undefined;
+        if (!loc) return;
+        if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
+        autoTimerRef.current = setTimeout(async () => {
+          if (!autoPlayRef.current || game.getWinner !== -1) return;
+          await loop(loc);
+        }, autoPlayDelay);
+      }
+    };
 
     if (game.getWinner === -1) {
       // In multiplayer, you can only attack on your turn (which is turn 0 locally)
@@ -117,6 +140,7 @@ const Boards = ({
           updateTurn();
           updateStatePlayer();
           setTimer(30);
+          scheduleAutoPlay();
         }
       }
     }
@@ -155,6 +179,17 @@ const Boards = ({
         game.next();
         updateTurn();
         setTimer(30);
+
+        if (autoPlayRef.current && game.getWinner === -1 && game.getTurn === 0) {
+          const loc = game.getPlayer(0).chooseAttack(game.getPlayer(1).getBoard) as [number, number] | undefined;
+          if (loc) {
+            if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
+            autoTimerRef.current = setTimeout(() => {
+              if (!autoPlayRef.current || game.getWinner !== -1) return;
+              loop(loc);
+            }, autoPlayDelay);
+          }
+        }
       };
 
       socket.on('attack', handleOpponentAttack);
@@ -174,6 +209,19 @@ const Boards = ({
       setShowExplosion(false);
     }
   }, [reset, game]);
+
+  useEffect(() => {
+    return () => {
+      if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (autoPlay && init && game.getWinner === -1 && game.getTurn === 0) {
+      const loc = game.getPlayer(0).chooseAttack(game.getPlayer(1).getBoard) as [number, number] | undefined;
+      if (loc) loop(loc);
+    }
+  }, [autoPlay]);
 
   return (
     <>
@@ -201,6 +249,7 @@ const Boards = ({
             gameMode={gameMode}
             playerIndex={playerIndex}
             updateBoardState={updateStatePlayer}
+            seed={mySeed}
           />
           <PlayerProfile name={playerName} avatarUrl={localAvatar} isReady={isLocalReady} align="right" showStatus={!init} />
         </BoardContainer>
@@ -221,6 +270,7 @@ const Boards = ({
             turn={turn}
             init={init}
             reset={reset}
+            seed={opponentSeed}
           />
           <DisplayShips player="computer" ships={shipsComputer} />
         </BoardContainer>

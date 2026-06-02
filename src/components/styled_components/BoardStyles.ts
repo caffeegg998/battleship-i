@@ -1,51 +1,77 @@
 import styled from "styled-components";
 
-const BoardContainer = styled.div`
+const BoardContainer = styled.div<{ $size?: number }>`
   display: flex;
   flex-direction: column;
   align-items: center;
 
   .board-wrapper {
     opacity: .4;
+    
+    position: relative; /* Container for absolute ships */
     display: flex;
     flex-direction: column;
+    padding-left: 1.5rem; /* Space for row numbers */
+    padding-bottom: 1.5rem; /* Space for column letters */
     counter-reset: row column;
     font-size: 1rem;
     font-weight: 700;
 
     .board-row {
+    
+      background-color: ${({ theme }) => theme.colors.gridBackground};
       display: flex;
       flex-direction: row;
       counter-increment: row;
-      justify-content: flex-end;
+      counter-reset: column;
+      position: relative;
+      font-size: 10px;
+
+       
+
+ 
+      
+      &::before {
+      
+        position: absolute;
+        right: 100%;
+        margin-right: .5rem;
+        top: 50%;
+        transform: translateY(-50%);
+        content: counter(row);
+      }
 
       &:last-child {
+       
         .board-tile {
-          counter-increment: column;
-          margin-bottom: 1.2rem;
-
           &::after {
             position: absolute;
             top: 110%;
+            left: 50%;
+            transform: translateX(-50%);
             content: counter(column, upper-latin);
+            
           }
         }
       }
 
-      &::before {
-        margin-right: .4rem;
-        content: counter(row);
+      .board-tile {
+        position: relative;
+        counter-increment: column;
+        width: calc((14rem + 10vw) / ${({ $size }) => $size || 10});
+        height: calc((14rem + 10vw) / ${({ $size }) => $size || 10});
+        margin: .1rem;
+        background-color: ${({ theme }) => theme.colors.gridBackground};
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+        font-size: 10px;
+        transition: border 0.2s ease;
       }
 
-        .board-tile {
-          position: relative;
-          width: calc(1.4rem + 1vw);
-          height: calc(1.4rem + 1vw);
-          margin: .1rem;
-          background-color: ${({ theme }) => theme.colors.gridBackground};
-          border: 2px solid ${({ theme }) => theme.colors.tile_border};
-          border-radius: 2px;
-        }
+      .land-tile-logic {
+        /* Logical land tiles are visually handled by texture overlay */
+        border-color: transparent;
+      }
 
         .ship-not-hit {
           background-color: ${({ theme }) => theme.colors.ship};
@@ -83,15 +109,30 @@ const BoardContainer = styled.div`
         }
 
         .missed {
-          background-color: #bce6eb;
+          background-color: #2c8af5;
 
           &::before {
-            content: '\\f111';
+            content: '💣';
             position: absolute;
             font-family: 'Font Awesome 5 Free', sans-serif;
             font-weight: 1000;
             font-size: 7px;
             left: 50%;
+            color: white;
+            top: 50%;
+            transform: translate(-50%, -50%);
+          }
+        }
+
+        .land-hit {
+          background-color: #8B5E3C;
+
+          &::before {
+            content: '●';
+            position: absolute;
+            font-size: 10px;
+            left: 50%;
+            color: #FFE0B2;
             top: 50%;
             transform: translate(-50%, -50%);
           }
@@ -141,7 +182,7 @@ const BoardContainer = styled.div`
       .board-tile {
 
         &:hover {
-          border: 2px solid #878891;
+          border: 1px solid #ffffff;
           cursor: pointer;
         }
       }

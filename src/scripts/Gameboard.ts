@@ -4,13 +4,17 @@ class Gameboard {
   private size: number;
   private tiles: (boolean | Battleship)[][];
   private ships: Battleship[];
+  private heightMap: number[][];
+  private textureUrl: string;
 
-  constructor(size: number) {
+  constructor(size: number, heightMap?: number[][], textureUrl?: string) {
     this.size = size;
     this.tiles = Array.from({ length: size }, () =>
       new Array(size).fill(false),
     );
     this.ships = [];
+    this.heightMap = heightMap || Array.from({ length: size }, () => new Array(size).fill(0));
+    this.textureUrl = textureUrl || "";
   }
 
   get getTiles(): (boolean | Battleship)[][] {
@@ -25,11 +29,25 @@ class Gameboard {
     return this.ships;
   }
 
+  get getHeightMap(): number[][] {
+    return this.heightMap;
+  }
+
+  setHeightMap(heightMap: number[][], textureUrl: string): void {
+    this.heightMap = heightMap;
+    this.textureUrl = textureUrl;
+  }
+
+  get getTextureUrl(): string {
+    return this.textureUrl;
+  }
+
   get getBoardStates(): { [state: string]: [number, number][] } {
     const states: { [state: string]: [number, number][] } = {
       shipHit: [],
       shipNotHit: [],
       missed: [],
+      landHit: [],
       notShot: [],
     };
 
@@ -41,13 +59,17 @@ class Gameboard {
             states.notShot.push([i, j]);
           }
           else {
-            states.missed.push([i, j]);
+            if (this.heightMap[i] && this.heightMap[i][j] >= 0.3) {
+              states.landHit.push([i, j]);
+            } else {
+              states.missed.push([i, j]);
+            }
           }
         }
         else {
           const shipParts = tile.getParts;
           const shipOrigin = tile.getOrigin;
-          const partToHit = shipOrigin[0] - i + (shipOrigin[1] - j);
+          const partToHit = Math.abs(shipOrigin[0] - i) + Math.abs(shipOrigin[1] - j);
           if(!shipParts[partToHit]) {
             states.shipNotHit.push([i, j]);
           }
@@ -74,6 +96,9 @@ class Gameboard {
     ];
     for(let i = 0; i < this.size; ++i) {
       for(let j = 0; j < this.size; ++j) {
+        // Cannot place on Land
+        if (this.heightMap[i][j] >= 0.3) continue;
+
         if(
           offset.every((off) => {
             if(
@@ -94,13 +119,21 @@ class Gameboard {
     return valid;
   }
 
-  placeShip(shipLength: number, location: [number, number], rotated: boolean): void {
+  private getPlacementOffsets(shipLength: number, direction: number): [number, number][] {
+    return Array.from({ length: shipLength }, (_, k) => {
+      if (direction === 0) return [0, k]; // Grows left (origin is right)
+      if (direction === 90) return [k, 0]; // Grows up (origin is bottom)
+      if (direction === 180) return [0, -k]; // Grows right (origin is left)
+      if (direction === 270) return [-k, 0]; // Grows down (origin is top)
+      return [0, k];
+    });
+  }
+
+  placeShip(shipLength: number, location: [number, number], direction: number | boolean, shipType: string = ""): void {
     const validPlacement = this.getBoardStates.notShot;
-    const battleship = new Battleship(shipLength, [location[0], location[1]], rotated);
-    const placementOffset: [number, number][] = Array.from(
-      { length: shipLength },
-      (_, k) => (rotated ? [k, 0] : [0, k])
-    );
+    const dir = typeof direction === 'boolean' ? (direction ? 90 : 0) : direction;
+    const battleship = new Battleship(shipLength, [location[0], location[1]], dir, shipType);
+    const placementOffset = this.getPlacementOffsets(shipLength, dir);
     const contactOffset: number[][] = [
       [-1, -1],
       [-1, 0],
@@ -113,25 +146,33 @@ class Gameboard {
     ];
 
     placementOffset.forEach((placement) => {
+      const tx = location[0] - placement[0];
+      const ty = location[1] - placement[1];
+
+      // Block land placement
+      if (this.heightMap[tx] && this.heightMap[tx][ty] >= 0.3) {
+        throw new Error("Invalid location. Cannot place ships on land.");
+      }
+
       if(
         !validPlacement.some(
           (tile) =>
-            tile[0] === location[0] - placement[0] &&
-            tile[1] === location[1] - placement[1]
+            tile[0] === tx &&
+            tile[1] === ty
         )
       ) {
         throw new Error("Invalid location.");
       }
       contactOffset.forEach((contact) => {
         if(
-          location[0] - placement[0] + contact[0] < 0 ||
-          location[0] - placement[0] + contact[0] > this.size - 1 ||
-          location[1] - placement[1] + contact[1] < 0 ||
-          location[1] - placement[1] + contact[1] > this.size - 1
+          tx + contact[0] < 0 ||
+          tx + contact[0] > this.size - 1 ||
+          ty + contact[1] < 0 ||
+          ty + contact[1] > this.size - 1
         ) {
           return;
         }
-        if(this.tiles[location[0]-placement[0]+contact[0]][location[1]-placement[1]+contact[1]]) {
+        if(this.tiles[tx + contact[0]][ty + contact[1]]) {
           throw new Error("Invalid location.");
         }
       });
@@ -148,21 +189,13 @@ class Gameboard {
     const ship = this.tiles[location[0]][location[1]] as Battleship;
     const shipLength = ship.getLength;
     const shipOrigin = ship.getOrigin;
-    const shipRotated = ship.getRotated;
-    const offset: [number, number][] = Array.from(
-      {length: shipLength},
-      (_, k) => (shipRotated ? [k, 0] : [0, k])
-    );
+    const shipDirection = ship.getDirection;
+    const offset = this.getPlacementOffsets(shipLength, shipDirection);
 
     offset.forEach((off) => {
       this.tiles[shipOrigin[0] - off[0]][shipOrigin[1] - off[1]] = false;
     });
-    this.ships = this.ships.filter((ship) =>
-      ship.getLength !== shipLength ||
-      ship.getOrigin[0] !== shipOrigin[0] ||
-      ship.getOrigin[1] !== shipOrigin[1] ||
-      ship.getRotated !== shipRotated
-    );
+    this.ships = this.ships.filter((s) => s !== ship);
 
     return ship;
   }
@@ -171,11 +204,11 @@ class Gameboard {
     const ship = this.removeShip(location);
     if(ship) {
       try {
-        this.placeShip(ship.getLength, ship.getOrigin, !ship.getRotated);
+        this.placeShip(ship.getLength, ship.getOrigin, (ship.getDirection + 90) % 360, ship.shipType);
         return true;
       }
       catch {
-        this.placeShip(ship.getLength, ship.getOrigin, ship.getRotated);
+        this.placeShip(ship.getLength, ship.getOrigin, ship.getDirection, ship.shipType);
         return false;
       }
     }
@@ -186,11 +219,11 @@ class Gameboard {
     const ship = this.removeShip(from);
     if(ship) {
       try {
-        this.placeShip(ship.getLength, to, ship.getRotated);
+        this.placeShip(ship.getLength, to, ship.getDirection, ship.shipType);
         return true;
       }
       catch {
-        this.placeShip(ship.getLength, from, ship.getRotated);
+        this.placeShip(ship.getLength, from, ship.getDirection, ship.shipType);
         return false;
       }
     }
@@ -210,7 +243,7 @@ class Gameboard {
     if(state.shipNotHit.find((el) => el[0] === location[0] && el[1] === location[1])) {
       const tile = this.tiles[location[0]][location[1]];
       (tile as Battleship).hit(
-        ((tile as Battleship).getOrigin[0] - location[0]) + ((tile as Battleship).getOrigin[1] - location[1])
+        Math.abs((tile as Battleship).getOrigin[0] - location[0]) + Math.abs((tile as Battleship).getOrigin[1] - location[1])
       );
       this.markAroundSunk(tile as Battleship);
       return true;
@@ -231,19 +264,21 @@ class Gameboard {
 
   distributeShips(ships: number[]): boolean {
     const done: boolean[] = [];
+    const types = ["carrier", "battleship", "cruiser", "submarine", "destroyer"];
     ships
-      .sort((a, b) => b - a)
-      .forEach((len) => {
+      .map((len, idx) => ({ len, type: types[idx] }))
+      .sort((a, b) => b.len - a.len)
+      .forEach(({ len, type }) => {
         let success = false;
-        const tried: [[number, number], boolean][] = [];
+        const tried: [[number, number], number][] = [];
         let location: [number, number] = [
           Math.floor(Math.random() * this.size),
           Math.floor(Math.random() * this.size)
         ];
-        let rotated: boolean = Math.random() < .5;
+        let direction: number = Math.floor(Math.random() * 4) * 90;
         const find = () => {
           return tried.find((el) =>
-            el[0][0] === location[0] && el[0][1] === location[1] && el[1] === rotated
+            el[0][0] === location[0] && el[0][1] === location[1] && el[1] === direction
           );
         }
         do {
@@ -253,18 +288,18 @@ class Gameboard {
                 Math.floor(Math.random() * this.size),
                 Math.floor(Math.random() * this.size)
               ];
-              rotated = Math.random() < .5;
+              direction = Math.floor(Math.random() * 4) * 90;
             } while(
               find()
             );
-            this.placeShip(len, location, rotated);
+            this.placeShip(len, location, direction, type);
             success = true;
           }
           catch {
-            tried.push([location, rotated]);
+            tried.push([location, direction]);
             success = false;
           }
-        } while(!success && tried.length < this.size * this.size);
+        } while(!success && tried.length < this.size * this.size * 4); // * 4 for directions
         done.push(success);
       });
     return done.every((d) => d);
@@ -273,7 +308,7 @@ class Gameboard {
   private markAroundSunk(ship: Battleship): void {
     if(ship.isSunk()) {
       const origin = ship.getOrigin;
-      const partsOffset = Array.from({length: ship.getLength}, (_, k) => ship.getRotated ? [k, 0] : [0, k]);
+      const partsOffset = this.getPlacementOffsets(ship.getLength, ship.getDirection);
       const aroundOffset: number[][] = [
         [-1, -1],
         [-1, 0],
@@ -286,16 +321,21 @@ class Gameboard {
       ];
       partsOffset.forEach((part) => {
         aroundOffset.forEach((around) => {
+          const tx = origin[0] - part[0] + around[0];
+          const ty = origin[1] - part[1] + around[1];
           if(
-            origin[0] - part[0] + around[0] < 0 ||
-            origin[0] - part[0] + around[0] > this.size - 1 ||
-            origin[1] - part[1] + around[1] < 0 ||
-            origin[1] - part[1] + around[1] > this.size - 1
+            tx < 0 ||
+            tx > this.size - 1 ||
+            ty < 0 ||
+            ty > this.size - 1
           ) {
             return;
           }
-          if(!this.tiles[origin[0] - part[0] + around[0]][origin[1] - part[1] + around[1]]) {
-            this.tiles[origin[0] - part[0] + around[0]][origin[1] - part[1] + around[1]] = true;
+          // Don't mark Land as 'true' (missed/hit marker) automatically
+          if (this.heightMap[tx][ty] >= 0.3) return;
+
+          if(!this.tiles[tx][ty]) {
+            this.tiles[tx][ty] = true;
           }
         });
       });
