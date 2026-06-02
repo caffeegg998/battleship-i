@@ -143,13 +143,18 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
     return `${game.getPlayer(player).getName}`;
   };
 
-  const boardShips = game.getPlayer(player).getBoard.getShips;
-  const cellSize = "calc(1.4rem + 1vw + 0.2rem)";
-  const paddingLeft = "1.5rem";
+  const board = game.getPlayer(player).getBoard;
+  const boardShips = board.getShips;
+  const size = board.getSize;
+
+  // Math for positioning ships accurately over the grid dynamically scaling
+  const tileBaseSize = `calc((14rem + 10vw) / ${size})`;
   const tileMargin = "0.1rem";
+  const cellSize = `calc(${tileBaseSize} + (${tileMargin} * 2))`;
+  const paddingLeft = "1.5rem";
 
   return (
-    <BoardContainer>
+    <BoardContainer $size={size}>
        <div className={`board-wrapper ${active}`} onMouseLeave={() => setHoverCoords(null)} style={{ position: 'relative' }}>
          {/* Render ship textures as overlays */}
          {boardShips.map((ship, idx) => {
@@ -184,6 +189,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
                  direction={ship.getDirection} 
                  isSunk={ship.isSunk()} 
                  index={ship.shipType === "submarine" ? 1 : 0} 
+                 boardSize={size}
                />
              </div>
            );
@@ -218,6 +224,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
                  length={marked.getLength} 
                  direction={marked.getDirection} 
                  index={marked.shipType === "submarine" ? 1 : 0} 
+                 boardSize={size}
                />
              </div>
            );

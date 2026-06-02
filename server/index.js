@@ -19,7 +19,11 @@ const getPublicRooms = () => {
   const publicRooms = [];
   for (const [roomId, room] of rooms.entries()) {
     if (room.players.length === 1) {
-      publicRooms.push({ roomId, hostName: room.playerNames[room.players[0]] || 'Unknown' });
+      publicRooms.push({ 
+        roomId, 
+        hostName: room.playerNames[room.players[0]] || 'Unknown',
+        boardSize: room.boardSize
+      });
     }
   }
   return publicRooms;
@@ -33,11 +37,19 @@ io.on('connection', (socket) => {
     socket.emit('room_list', getPublicRooms());
   });
 
-  socket.on('join_room', ({ roomId, playerName, avatar }) => {
+  socket.on('join_room', ({ roomId, playerName, avatar, boardSize }) => {
     socket.join(roomId);
     
     if (!rooms.has(roomId)) {
-      rooms.set(roomId, { players: [], readyCount: 0, layouts: {}, playerNames: {}, playerAvatars: {} });
+      // Room creator sets the board size
+      rooms.set(roomId, { 
+        players: [], 
+        isReady: [false, false], 
+        layouts: {}, 
+        playerNames: {}, 
+        playerAvatars: {},
+        boardSize: boardSize || 10
+      });
     }
     
     const room = rooms.get(roomId);
@@ -48,8 +60,8 @@ io.on('connection', (socket) => {
       room.playerNames[socket.id] = playerName || `Player ${playerIndex + 1}`;
       room.playerAvatars[socket.id] = avatar || '';
       
-      socket.emit('player_assigned', playerIndex);
-      console.log(`User ${socket.id} (${room.playerNames[socket.id]}) joined room ${roomId} as player ${playerIndex}`);
+      socket.emit('player_assigned', { index: playerIndex, boardSize: room.boardSize });
+      console.log(`User ${socket.id} (${room.playerNames[socket.id]}) joined room ${roomId} as player ${playerIndex} (Size: ${room.boardSize})`);
       
       if (room.players.length === 2) {
         const p0Id = room.players[0];
@@ -75,14 +87,14 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomId);
     if (!room) return;
 
-    room.readyCount++;
     const playerIndex = room.players.indexOf(socket.id);
-    room.layouts[playerIndex] = ships;
+    if (!room.isReady[playerIndex]) {
+      room.isReady[playerIndex] = true;
+      room.layouts[playerIndex] = ships;
+      socket.to(roomId).emit('opponent_ready');
+    }
 
-    // Notify the other player that this player is ready
-    socket.to(roomId).emit('opponent_ready');
-
-    if (room.readyCount === 2) {
+    if (room.isReady[0] && room.isReady[1]) {
       // Send P1's layout to P0, and P0's layout to P1
       const p0Id = room.players[0];
       const p1Id = room.players[1];
@@ -98,6 +110,9 @@ io.on('connection', (socket) => {
         opponentAvatar: room.playerAvatars[p0Id]
       });
       console.log(`Game started in room ${roomId}`);
+      
+      // Reset readiness for potential rematch
+      room.isReady = [false, false];
     }
   });
 
@@ -105,11 +120,32 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('attack', loc);
   });
 
-  socket.on('restart_game', (roomId) => {
+  socket.on('restart_game', (roomId, callback) => {
     const room = rooms.get(roomId);
     if (room) {
-      room.readyCount = 0;
-      room.layouts = {};
+      const playerIndex = room.players.indexOf(socket.id);
+      if (playerIndex !== -1) {
+        room.isReady[playerIndex] = false;
+        delete room.layouts[playerIndex];
+        
+        socket.to(roomId).emit('opponent_unready');
+        
+        if (typeof callback === 'function') {
+          const opponentIndex = playerIndex === 0 ? 1 : 0;
+          callback(room.isReady[opponentIndex]);
+        }
+      }
+    }
+  });
+
+  socket.on('leave_room', (roomId) => {
+    socket.leave(roomId);
+    const room = rooms.get(roomId);
+    if (room && room.players.includes(socket.id)) {
+      socket.to(roomId).emit('opponent_disconnected');
+      rooms.delete(roomId);
+      io.emit('room_list', getPublicRooms());
+      console.log(`User ${socket.id} left room ${roomId}. Room deleted.`);
     }
   });
 

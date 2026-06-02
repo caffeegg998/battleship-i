@@ -1,6 +1,6 @@
 import styled from "styled-components";
 
-const BoardContainer = styled.div`
+const BoardContainer = styled.div<{ $size?: number }>`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -20,6 +20,7 @@ const BoardContainer = styled.div`
       display: flex;
       flex-direction: row;
       counter-increment: row;
+      counter-reset: column;
       position: relative;
 
       &::before {
@@ -46,8 +47,8 @@ const BoardContainer = styled.div`
       .board-tile {
         position: relative;
         counter-increment: column;
-        width: calc(1.4rem + 1vw);
-        height: calc(1.4rem + 1vw);
+        width: calc((14rem + 10vw) / ${({ $size }) => $size || 10});
+        height: calc((14rem + 10vw) / ${({ $size }) => $size || 10});
         margin: .1rem;
         background-color: ${({ theme }) => theme.colors.gridBackground};
         border: 2px solid ${({ theme }) => theme.colors.tile_border};

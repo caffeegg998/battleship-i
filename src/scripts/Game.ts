@@ -28,7 +28,7 @@ class Game {
     }
   }
 
-  setOpponentShips(ships: {length: number, origin: [number, number], rotated: boolean}[]): void {
+  setOpponentShips(ships: {length: number, origin: [number, number], direction: number, shipType: string}[]): void {
     const board = this.players[1].getBoard;
     // Clear random ships first
     const currentShips = [...board.getShips];
@@ -36,7 +36,7 @@ class Game {
     
     // Place new ships
     ships.forEach(s => {
-      board.placeShip(s.length, s.origin, s.rotated);
+      board.placeShip(s.length, s.origin, s.direction, s.shipType);
     });
   }
 

@@ -8,16 +8,16 @@ const fire1Anime = keyframes`
  80% { transform:translateY(0px) rotate(10deg); height:0px; width:0px; border-radius:30%; background-color:#F73B01; }
 `;
 
-export const ShipContainer = styled.div<{ $length: number, $direction: number, $isSunk?: boolean }>`
+export const ShipContainer = styled.div<{ $length: number, $direction: number, $isSunk?: boolean, $boardSize?: number }>`
   position: absolute;
-  height: calc(1.4rem + 1vw);
-  width: calc((${({ $length }) => $length} * (1.4rem + 1vw)) + ((${({ $length }) => $length} - 1) * 0.2rem));
+  height: calc((14rem + 10vw) / ${({ $boardSize }) => $boardSize || 10});
+  width: calc((${({ $length }) => $length} * ((14rem + 10vw) / ${({ $boardSize }) => $boardSize || 10})) + ((${({ $length }) => $length} - 1) * 0.2rem));
   pointer-events: none;
   z-index: 5;
   filter: drop-shadow(4px 4px 3px rgba(0, 0, 0, 0.4));
   
   transform: rotate(${({ $direction }) => $direction}deg);
-  transform-origin: calc((1.4rem + 1vw) / 2) calc((1.4rem + 1vw) / 2);
+  transform-origin: calc(((14rem + 10vw) / ${({ $boardSize }) => $boardSize || 10}) / 2) calc(((14rem + 10vw) / ${({ $boardSize }) => $boardSize || 10}) / 2);
 
   ${({ $isSunk }) => $isSunk && css`
     opacity: 0.7;

@@ -31,9 +31,10 @@ type ShipVisualProps = {
   direction?: number;
   isSunk?: boolean;
   index?: number;
+  boardSize?: number;
 };
 
-const ShipVisual = ({ length, rotated = false, direction, isSunk = false, index = 0 }: ShipVisualProps) => {
+const ShipVisual = ({ length, rotated = false, direction, isSunk = false, index = 0, boardSize = 10 }: ShipVisualProps) => {
   const renderShipModel = () => {
     switch (length) {
       case 5:
@@ -118,7 +119,7 @@ const ShipVisual = ({ length, rotated = false, direction, isSunk = false, index 
   const finalDirection = direction !== undefined ? direction : (rotated ? 90 : 0);
 
   return (
-    <ShipContainer $length={length} $direction={finalDirection} $isSunk={isSunk}>
+    <ShipContainer $length={length} $direction={finalDirection} $isSunk={isSunk} $boardSize={boardSize}>
       {renderShipModel()}
     </ShipContainer>
   );
