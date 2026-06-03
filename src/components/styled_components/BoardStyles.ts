@@ -8,15 +8,18 @@ const BoardContainer = styled.div<{ $size?: number }>`
   .board-viewport-shell {
     position: relative;
     max-width: 100%;
+    padding-left: 1.5rem;
+    padding-bottom: 1.5rem;
   }
 
   .board-axis-y-viewport,
   .board-axis-x-viewport {
     position: absolute;
-    z-index: 35;
+    z-index: 100;
     pointer-events: none;
     overflow: hidden;
-    background-color: ${({ theme }) => theme.colors.gridBackground};
+    background-color: ${({ theme }) => theme.colors.background};
+    color: rgba(255, 255, 255, 0.92);
   }
 
   .board-axis-y-viewport {
@@ -42,7 +45,12 @@ const BoardContainer = styled.div<{ $size?: number }>`
   .board-viewport {
     max-width: calc(100vw - 2rem);
     position: relative;
-    scrollbar-width: thin;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   .board-zoom-space {
@@ -58,8 +66,8 @@ const BoardContainer = styled.div<{ $size?: number }>`
 
   .board-minimap {
     position: absolute;
-    right: 0.6rem;
-    bottom: 0.6rem;
+    right: 1rem;
+    bottom: 2.5rem;
     width: 6.5rem;
     aspect-ratio: 1;
     z-index: 30;
@@ -109,8 +117,9 @@ const BoardContainer = styled.div<{ $size?: number }>`
     display: flex;
     align-items: center;
     justify-content: center;
-    color: rgba(255, 255, 255, 0.92);
-    font-size: 0.85rem;
+    color:${({ theme }) => theme.colors.displayBorder};
+    background-color: ${({ theme }) => theme.colors.background};
+    font-size: 1rem;
     font-weight: 700;
     line-height: 1;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
@@ -135,8 +144,6 @@ const BoardContainer = styled.div<{ $size?: number }>`
     position: relative; /* Container for absolute ships */
     display: flex;
     flex-direction: column;
-    padding-left: 1.5rem; /* Space for row numbers */
-    padding-bottom: 1.5rem; /* Space for column letters */
     counter-reset: row column;
     font-size: 1rem;
     font-weight: 700;
@@ -171,7 +178,7 @@ const BoardContainer = styled.div<{ $size?: number }>`
       .board-tile {
         position: relative;
         counter-increment: column;
-        width: calc((14rem + 10vw) / ${({ $size }) => $size || 10});
+        width: calc((14rem + 12vw) / ${({ $size }) => $size || 10});
         height: calc((14rem + 10vw) / ${({ $size }) => $size || 10});
         margin: .1rem;
         background-color: ${({ theme }) => theme.colors.gridBackground};
