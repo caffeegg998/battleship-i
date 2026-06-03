@@ -1,6 +1,6 @@
 import styled from "styled-components";
 
-const BoardContainer = styled.div<{ $size?: number }>`
+const BoardContainer = styled.div<{ $size?: number; $zoom?: number }>`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -35,12 +35,6 @@ const BoardContainer = styled.div<{ $size?: number }>`
     max-width: calc(100vw - 2rem);
   }
 
-  .board-axis-y-layer,
-  .board-axis-x-layer {
-    position: relative;
-    width: 100%;
-    height: 100%;
-  }
 
   .board-viewport {
     max-width: calc(100vw - 2rem);
@@ -122,6 +116,9 @@ const BoardContainer = styled.div<{ $size?: number }>`
     font-size: 1rem;
     font-weight: 700;
     line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
     transform-origin: center;
   }
@@ -178,8 +175,8 @@ const BoardContainer = styled.div<{ $size?: number }>`
       .board-tile {
         position: relative;
         counter-increment: column;
-        width: calc((14rem + 12vw) / ${({ $size }) => $size || 10});
-        height: calc((14rem + 10vw) / ${({ $size }) => $size || 10});
+        width: calc(((14rem + 10vw) / ${({ $size }) => $size || 10}) * ${({ $zoom }) => $zoom || 1});
+        height: calc(((14rem + 10vw) / ${({ $size }) => $size || 10}) * ${({ $zoom }) => $zoom || 1});
         margin: .1rem;
         background-color: ${({ theme }) => theme.colors.gridBackground};
         border: 1px solid rgba(255, 255, 255, 0.2);
@@ -206,7 +203,7 @@ const BoardContainer = styled.div<{ $size?: number }>`
             position: absolute;
             font-family: 'Font Awesome 5 Free', sans-serif;
             font-weight: 1000;
-            font-size: 15px;
+            font-size: calc(15px * ${({ $zoom }) => $zoom || 1});
             left: 50%;
             top: 52%;
             transform: translate(-50%, -50%);
@@ -221,7 +218,7 @@ const BoardContainer = styled.div<{ $size?: number }>`
             position: absolute;
             font-family: 'Font Awesome 5 Free', sans-serif;
             font-weight: 1000;
-            font-size: 15px;
+            font-size: calc(15px * ${({ $zoom }) => $zoom || 1});
             left: 50%;
             top: 52%;
             transform: translate(-50%, -50%);
@@ -236,7 +233,7 @@ const BoardContainer = styled.div<{ $size?: number }>`
             position: absolute;
             font-family: 'Font Awesome 5 Free', sans-serif;
             font-weight: 1000;
-            font-size: 7px;
+            font-size: calc(7px * ${({ $zoom }) => $zoom || 1});
             left: 50%;
             color: white;
             top: 50%;
@@ -250,7 +247,7 @@ const BoardContainer = styled.div<{ $size?: number }>`
           &::before {
             content: '●';
             position: absolute;
-            font-size: 10px;
+            font-size: calc(10px * ${({ $zoom }) => $zoom || 1});
             left: 50%;
             color: #FFE0B2;
             top: 50%;

@@ -26,6 +26,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   const [hoverCoords, setHoverCoords] = useState<[number, number] | null>(null);
   const [rotationToggle, setRotationToggle] = useState(false);
   const [mapZoom, setMapZoom] = useState<number>(1);
+  const zKeyRef = useRef(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const boardWrapperRef = useRef<HTMLDivElement | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
@@ -48,24 +49,21 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   const coordKey = (x: number, y: number) => `${x},${y}`;
   const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
   const getBoardMetrics = useCallback(() => {
-    const shell = shellRef.current;
-    if (!shell) return null;
+    const wrapper = boardWrapperRef.current;
+    if (!wrapper) return null;
 
-    const styles = window.getComputedStyle(shell);
-    const axisWidth = parseFloat(styles.paddingLeft) || 0;
-    const axisHeight = parseFloat(styles.paddingBottom) || 0;
-    const mapWidth = Math.max(1, shell.clientWidth - axisWidth);
-    const mapHeight = Math.max(1, shell.clientHeight - axisHeight);
+    const mapWidth = Math.max(1, wrapper.scrollWidth);
+    const mapHeight = Math.max(1, wrapper.scrollHeight);
 
     return {
-      axisWidth,
+      axisWidth: 0,
       mapWidth,
       mapHeight,
-      scaledAxisWidth: axisWidth * mapZoom,
-      scaledMapWidth: mapWidth * mapZoom,
-      scaledMapHeight: mapHeight * mapZoom,
+      scaledAxisWidth: 0,
+      scaledMapWidth: mapWidth,
+      scaledMapHeight: mapHeight,
     };
-  }, [mapZoom]);
+  }, []);
 
   const getColumnLabel = (index: number) => {
     let n = index + 1;
@@ -216,21 +214,19 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
     const visibleRight = visibleLeft + viewport.clientWidth;
     const visibleBottom = visibleTop + viewport.clientHeight;
 
-    const mapLeft = metrics.scaledAxisWidth;
-    const mapTop = 0;
-    const mapRight = mapLeft + metrics.scaledMapWidth;
+    const mapRight = metrics.scaledMapWidth;
     const mapBottom = metrics.scaledMapHeight;
 
-    const clippedLeft = clamp(Math.max(visibleLeft, mapLeft), mapLeft, mapRight);
-    const clippedTop = clamp(Math.max(visibleTop, mapTop), mapTop, mapBottom);
-    const clippedRight = clamp(Math.min(visibleRight, mapRight), mapLeft, mapRight);
-    const clippedBottom = clamp(Math.min(visibleBottom, mapBottom), mapTop, mapBottom);
+    const clippedLeft = clamp(visibleLeft, 0, mapRight);
+    const clippedTop = clamp(visibleTop, 0, mapBottom);
+    const clippedRight = clamp(visibleRight, 0, mapRight);
+    const clippedBottom = clamp(visibleBottom, 0, mapBottom);
     const clippedWidth = Math.max(0, clippedRight - clippedLeft);
     const clippedHeight = Math.max(0, clippedBottom - clippedTop);
 
     setMinimapViewport({
-      left: ((clippedLeft - mapLeft) / metrics.scaledMapWidth) * 100,
-      top: ((clippedTop - mapTop) / metrics.scaledMapHeight) * 100,
+      left: (clippedLeft / metrics.scaledMapWidth) * 100,
+      top: (clippedTop / metrics.scaledMapHeight) * 100,
       width: (clippedWidth / metrics.scaledMapWidth) * 100,
       height: (clippedHeight / metrics.scaledMapHeight) * 100,
     });
@@ -277,7 +273,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
     const ratioX = (event.clientX - rect.left) / rect.width;
     const ratioY = (event.clientY - rect.top) / rect.height;
 
-    const targetX = metrics.scaledAxisWidth + ratioX * metrics.scaledMapWidth;
+    const targetX = ratioX * metrics.scaledMapWidth;
     const targetY = ratioY * metrics.scaledMapHeight;
 
     viewport.scrollLeft = Math.max(0, targetX - viewport.clientWidth / 2);
@@ -286,11 +282,26 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   }, [getBoardMetrics, updateMinimapViewport]);
 
   useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z') zKeyRef.current = true;
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z') zKeyRef.current = false;
+    };
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keyup', onKeyUp);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('keyup', onKeyUp);
+    };
+  }, []);
+
+  useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
 
     const onWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
+      if (!zKeyRef.current) return;
       e.preventDefault();
 
       const currentZoom = mapZoom;
@@ -323,39 +334,32 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   };
 
   // Math for positioning items accurately over the grid
-  const tileBaseSize = `calc((14rem + 10vw) / ${size})`;
+  const tileBaseSize = `calc(((14rem + 10vw) * ${mapZoom}) / ${size})`;
   const tileMargin = "0.1rem";
   const cellSize = `calc(${tileBaseSize} + (${tileMargin} * 2))`;
+  const baseCellSize = `calc((14rem + 10vw) / ${size} + (${tileMargin} * 2))`;
   const paddingLeft = "0rem";
   const axisLabelLeft = "1.5rem";
   const baseBoardWidth = `calc(${size} * ${cellSize})`;
   const XTitleWidth = `calc((${size} + 1) * ${cellSize})`;
   const baseBoardHeight = `calc(${size} * ${cellSize})`;
+  const viewportWidth = `calc(${size} * ${baseCellSize})`;
+  const viewportHeight = `calc(${size} * ${baseCellSize})`;
   const boardViewportStyle = {
-    width: baseBoardWidth,
-    height: baseBoardHeight,
+    width: viewportWidth,
+    height: viewportHeight,
     overflow: mapZoom > 1 ? 'auto' : 'visible',
   } as React.CSSProperties;
   const boardZoomSpaceStyle = {
-    width: baseBoardSize.width ? `${baseBoardSize.width * mapZoom}px` : baseBoardWidth,
-    height: baseBoardSize.height ? `${baseBoardSize.height * mapZoom}px` : baseBoardHeight,
+    width: baseBoardWidth,
+    height: baseBoardHeight,
     position: 'relative',
   } as React.CSSProperties;
-  const boardWrapperStyle = (
-    mapZoom === 1
-      ? {
-          position: 'relative',
-          width: baseBoardSize.width ? `${baseBoardSize.width}px` : baseBoardWidth,
-          height: baseBoardSize.height ? `${baseBoardSize.height}px` : baseBoardHeight,
-        }
-      : {
-          position: 'relative',
-          width: baseBoardSize.width ? `${baseBoardSize.width}px` : baseBoardWidth,
-          height: baseBoardSize.height ? `${baseBoardSize.height}px` : baseBoardHeight,
-          transform: `scale(${mapZoom})`,
-          transformOrigin: 'top left',
-        }
-  ) as React.CSSProperties;
+  const boardWrapperStyle = {
+    position: 'relative',
+    width: baseBoardWidth,
+    height: baseBoardHeight,
+  } as React.CSSProperties;
 
   const gridRows = useMemo(() => (
     board.getTiles.map((row, i) => (
@@ -385,7 +389,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
         key={`axis-y-${row}`}
         className="board-axis-label board-axis-y-label"
         style={{
-          top: `calc(((${row} * ${cellSize} * ${mapZoom}) + (${cellSize} * ${mapZoom} / 2)) - ${viewportScroll.top}px)`,
+          top: `calc(((${row} * ${cellSize}) + (${cellSize} / 2)) - ${viewportScroll.top}px)`,
           transform: `translateY(-50%)`,
         }}
       >
@@ -400,7 +404,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
         key={`axis-x-${col}`}
         className="board-axis-label board-axis-x-label"
         style={{
-          left: `calc(${axisLabelLeft} + (${col} * ${cellSize} * ${mapZoom}) + ((${cellSize} * ${mapZoom}) / 2) - ${viewportScroll.left}px)`,
+          left: `calc(${axisLabelLeft} + (${col} * ${cellSize}) + ((${cellSize}) / 2) - ${viewportScroll.left}px)`,
           transform: `translateX(-50%)`,
         }}
       >
@@ -418,7 +422,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   } as React.CSSProperties;
 
   return (
-    <BoardContainer $size={size}>
+    <BoardContainer $size={size} $zoom={mapZoom}>
       <div ref={shellRef} className="board-viewport-shell">
         <div className="board-axis-y-viewport" style={{ height: `calc(${size} * ${cellSize})` }}>
           <div className="board-axis-y-layer" style={yAxisLayerStyle}>
@@ -482,13 +486,14 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
                zIndex: 6,
                pointerEvents: 'none'
              }}>
-               <ShipVisual 
-                 length={ship.getLength} 
-                 direction={ship.getDirection} 
-                 isSunk={ship.isSunk()} 
-                 index={ship.shipType === "submarine" ? 1 : 0} 
-                 boardSize={size}
-               />
+                <ShipVisual 
+                  length={ship.getLength} 
+                  direction={ship.getDirection} 
+                  isSunk={ship.isSunk()} 
+                  index={ship.shipType === "submarine" ? 1 : 0} 
+                  boardSize={size}
+                  zoom={mapZoom}
+                />
              </div>
            );
          })}
