@@ -691,7 +691,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
           >
             {textureUrl && <img src={textureUrl} alt="" />}
             <div className="board-minimap-grid" />
-            {boardShips.map((ship, i) => {
+            {player === 0 && boardShips.map((ship, i) => {
               const [r, c] = ship.getOrigin;
               const len = ship.getLength;
               const dir = ship.getDirection;

@@ -244,6 +244,7 @@ const BoardContainer = styled.div<{ $size?: number; $zoom?: number }>`
       .land-tile-logic {
         /* Logical land tiles are visually handled by texture overlay */
         border-color: transparent;
+        cursor: not-allowed;
       }
 
         .ship-not-hit {
