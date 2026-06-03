@@ -3,125 +3,207 @@
 exports[`component renders 1`] = `
 <DocumentFragment>
   <div
-    class="sc-bdDsCe bJBPhF"
+    class="sc-bdDsCe fiETWO"
   >
     <div
-      class="board-wrapper active"
-      style="position: relative;"
+      class="board-viewport-shell"
     >
       <div
-        style="position: absolute; left: calc(1.6rem + (0 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)))); top: calc(0.1rem + (0 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)))); z-index: 6; pointer-events: none;"
+        class="board-axis-y-viewport"
+        style="height: calc(4 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)));"
       >
         <div
-          class="sc-dkXsAU ddDDMx"
+          class="board-axis-y-layer"
+          style="transform: translateY(0px) scale(1); transform-origin: top left;"
         >
           <div
-            class="sc-hKVpXn sc-hHopjF dyVbIv cQYmBa"
-          />
-          <div
-            class="sc-hKVpXn sc-eCQgVK dyVbIv hjwAJA"
+            class="board-axis-label board-axis-y-label"
+            style="top: calc((0 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem))) + (0.5 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)))); transform: translateY(-50%) scale(1);"
           >
-            <div
-              class="sc-hKVpXn sc-dlwHGs dyVbIv ddFSRZ"
-            />
+            1
           </div>
           <div
-            class="sc-hKVpXn sc-eCQgVK dyVbIv jIPtAb"
+            class="board-axis-label board-axis-y-label"
+            style="top: calc((0.5 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem))) + (1 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)))); transform: translateY(-50%) scale(1);"
           >
-            <div
-              class="sc-hKVpXn sc-kgohyr dyVbIv fsYjzC"
-            />
+            2
+          </div>
+          <div
+            class="board-axis-label board-axis-y-label"
+            style="top: calc((0.5 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem))) + (2 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)))); transform: translateY(-50%) scale(1);"
+          >
+            3
+          </div>
+          <div
+            class="board-axis-label board-axis-y-label"
+            style="top: calc((0.5 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem))) + (3 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)))); transform: translateY(-50%) scale(1);"
+          >
+            4
           </div>
         </div>
       </div>
       <div
-        style="position: absolute; left: calc(1.6rem + (2 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)))); top: calc(0.1rem + (3 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)))); z-index: 6; pointer-events: none;"
+        class="board-axis-x-viewport"
+        style="width: calc(1.5rem + (4 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem))));"
       >
         <div
-          class="sc-dkXsAU gNppZo"
+          class="board-axis-x-layer"
+          style="transform: translateX(0px) scale(1); transform-origin: top left;"
         >
           <div
-            class="sc-hKVpXn sc-hHopjF dyVbIv cQYmBa"
-          />
-          <div
-            class="sc-hKVpXn sc-eCQgVK dyVbIv hjwAJA"
+            class="board-axis-label board-axis-x-label"
+            style="left: calc(1.5rem + ((0 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem))) + (0.5 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem))))); transform: translateX(-50%) scale(1);"
           >
-            <div
-              class="sc-hKVpXn sc-dlwHGs dyVbIv ddFSRZ"
-            />
+            A
           </div>
           <div
-            class="sc-hKVpXn sc-eCQgVK dyVbIv jIPtAb"
+            class="board-axis-label board-axis-x-label"
+            style="left: calc(1.5rem + ((0.5 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem))) + (1 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem))))); transform: translateX(-50%) scale(1);"
           >
-            <div
-              class="sc-hKVpXn sc-kgohyr dyVbIv fsYjzC"
-            />
+            B
+          </div>
+          <div
+            class="board-axis-label board-axis-x-label"
+            style="left: calc(1.5rem + ((0.5 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem))) + (2 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem))))); transform: translateX(-50%) scale(1);"
+          >
+            C
+          </div>
+          <div
+            class="board-axis-label board-axis-x-label"
+            style="left: calc(1.5rem + ((0.5 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem))) + (3 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem))))); transform: translateX(-50%) scale(1);"
+          >
+            D
           </div>
         </div>
       </div>
       <div
-        class="board-row"
+        class="board-viewport "
+        style="width: calc(1.5rem + (4 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)))); height: calc(1.5rem + (4 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)))); overflow: visible;"
       >
         <div
-          class="board-tile ship-not-hit"
-        />
-        <div
-          class="board-tile ship-not-hit"
-        />
-        <div
-          class="board-tile"
-        />
-        <div
-          class="board-tile"
-        />
-      </div>
-      <div
-        class="board-row"
-      >
-        <div
-          class="board-tile"
-        />
-        <div
-          class="board-tile"
-        />
-        <div
-          class="board-tile"
-        />
-        <div
-          class="board-tile"
-        />
-      </div>
-      <div
-        class="board-row"
-      >
-        <div
-          class="board-tile"
-        />
-        <div
-          class="board-tile"
-        />
-        <div
-          class="board-tile ship-not-hit"
-        />
-        <div
-          class="board-tile"
-        />
-      </div>
-      <div
-        class="board-row"
-      >
-        <div
-          class="board-tile"
-        />
-        <div
-          class="board-tile"
-        />
-        <div
-          class="board-tile ship-not-hit"
-        />
-        <div
-          class="board-tile"
-        />
+          class="board-zoom-space"
+          style="width: calc(1.5rem + (4 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)))); height: calc(1.5rem + (4 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)))); position: relative;"
+        >
+          <div
+            class="board-wrapper active"
+            style="position: relative; width: calc(1.5rem + (4 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)))); height: calc(1.5rem + (4 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem))));"
+          >
+            <div
+              style="position: absolute; left: calc(1.6rem + (0 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)))); top: calc(0.1rem + (0 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)))); z-index: 6; pointer-events: none;"
+            >
+              <div
+                class="sc-dkXsAU keWcZQ"
+              >
+                <div
+                  class="sc-hKVpXn sc-hHopjF dyVbIv cQYmBa"
+                />
+                <div
+                  class="sc-hKVpXn sc-eCQgVK dyVbIv hjwAJA"
+                >
+                  <div
+                    class="sc-hKVpXn sc-dlwHGs dyVbIv ddFSRZ"
+                  />
+                </div>
+                <div
+                  class="sc-hKVpXn sc-eCQgVK dyVbIv jIPtAb"
+                >
+                  <div
+                    class="sc-hKVpXn sc-kgohyr dyVbIv fsYjzC"
+                  />
+                </div>
+              </div>
+            </div>
+            <div
+              style="position: absolute; left: calc(1.6rem + (2 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)))); top: calc(0.1rem + (3 * calc(calc(0.25 * (14rem + 10vw)) + (0.2rem)))); z-index: 6; pointer-events: none;"
+            >
+              <div
+                class="sc-dkXsAU bjywgl"
+              >
+                <div
+                  class="sc-hKVpXn sc-hHopjF dyVbIv cQYmBa"
+                />
+                <div
+                  class="sc-hKVpXn sc-eCQgVK dyVbIv hjwAJA"
+                >
+                  <div
+                    class="sc-hKVpXn sc-dlwHGs dyVbIv ddFSRZ"
+                  />
+                </div>
+                <div
+                  class="sc-hKVpXn sc-eCQgVK dyVbIv jIPtAb"
+                >
+                  <div
+                    class="sc-hKVpXn sc-kgohyr dyVbIv fsYjzC"
+                  />
+                </div>
+              </div>
+            </div>
+            <div
+              class="board-row"
+            >
+              <div
+                class="board-tile ship-not-hit"
+              />
+              <div
+                class="board-tile ship-not-hit"
+              />
+              <div
+                class="board-tile"
+              />
+              <div
+                class="board-tile"
+              />
+            </div>
+            <div
+              class="board-row"
+            >
+              <div
+                class="board-tile"
+              />
+              <div
+                class="board-tile"
+              />
+              <div
+                class="board-tile"
+              />
+              <div
+                class="board-tile"
+              />
+            </div>
+            <div
+              class="board-row"
+            >
+              <div
+                class="board-tile"
+              />
+              <div
+                class="board-tile"
+              />
+              <div
+                class="board-tile ship-not-hit"
+              />
+              <div
+                class="board-tile"
+              />
+            </div>
+            <div
+              class="board-row"
+            >
+              <div
+                class="board-tile"
+              />
+              <div
+                class="board-tile"
+              />
+              <div
+                class="board-tile ship-not-hit"
+              />
+              <div
+                class="board-tile"
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <h4
