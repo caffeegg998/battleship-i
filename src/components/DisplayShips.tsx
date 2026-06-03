@@ -1,28 +1,48 @@
 import React from "react";
 import Battleship from "../scripts/Battleship";
-import { ShipWrapper, ShipsContainer, Part } from "./styled_components/DisplayShipsStyles";
+import { ShipsContainer } from "./styled_components/DisplayShipsStyles";
+import ShipVisual from "./ShipVisual";
 
 type DisplayShipsProps = {
   player: string,
-  ships: Battleship[]
+  ships: Battleship[],
+  onShipClick?: (index: number) => void,
+  selectedIndex?: number | null,
 };
 
-const DisplayShips = ({player, ships}: DisplayShipsProps) => {
+const DisplayShips = ({player, ships, onShipClick, selectedIndex}: DisplayShipsProps) => {
   return (
     <ShipsContainer player={player}>
       {ships.sort((a, b) => a.getLength - b.getLength).map((ship, i) => {
-        return(
-          <ShipWrapper key={i}>
-            {ship.getParts.map((_, j) => {
-              if(ship.isSunk()) {
-                return <Part $sunk={true} key={j} />;
-              }
-              else {
-                return <Part $sunk={false} key={j} />;
-              }
-            })}
-          </ShipWrapper>
-        )
+        const zoom = 0.27;
+        const isSelected = selectedIndex === i;
+        return (
+          <div
+            key={i}
+            onClick={() => onShipClick?.(i)}
+            style={{
+              position: 'relative',
+              height: `calc(((14rem + 10vw) / 10) * ${zoom})`,
+              width: `calc((${ship.getLength} * ((14rem + 10vw) / 10) + (${ship.getLength - 1} * 0.2rem)) * ${zoom})`,
+              overflow: 'hidden',
+              flexShrink: 0,
+              cursor: 'pointer',
+              outline: isSelected ? '2px solid #2ecc71' : 'none',
+              outlineOffset: '2px',
+              borderRadius: '2px',
+              opacity: ship.isSunk() ? 0.5 : 1,
+            }}
+          >
+            <ShipVisual
+              length={ship.getLength}
+              direction={0}
+              isSunk={ship.isSunk()}
+              index={ship.shipType === "submarine" ? 1 : 0}
+              boardSize={10}
+              zoom={zoom}
+            />
+          </div>
+        );
       })}
     </ShipsContainer>
   );
