@@ -1,8 +1,11 @@
+import { getWeaponsForShip } from "./WeaponDefs";
+
 class Battleship {
     private parts: boolean[];
     private origin: [number, number];
     public direction: number;
     public shipType: string;
+    private weaponCooldowns: Record<string, number>;
 
     constructor(shipLength: number, origin: [number, number], direction: number | boolean, shipType: string = "") {
         this.parts = new Array(shipLength).fill(false);
@@ -13,6 +16,9 @@ class Battleship {
             this.direction = direction;
         }
         this.shipType = shipType;
+        const weapons = getWeaponsForShip(this.shipType);
+        this.weaponCooldowns = {};
+        weapons.forEach(w => { this.weaponCooldowns[w.id] = 0; });
     }
 
     get getParts(): boolean[] {
@@ -56,6 +62,26 @@ class Battleship {
 
     isSunk(): boolean {
         return this.parts.every((part) => part);
+    }
+
+    getWeaponCooldowns(): Record<string, number> {
+        return { ...this.weaponCooldowns };
+    }
+
+    useWeapon(weaponId: string): void {
+        const weapons = getWeaponsForShip(this.shipType);
+        const def = weapons.find(w => w.id === weaponId);
+        if (def) {
+            this.weaponCooldowns[weaponId] = def.cooldown;
+        }
+    }
+
+    tickWeaponCooldowns(): void {
+        for (const key in this.weaponCooldowns) {
+            if (this.weaponCooldowns[key] > 0) {
+                this.weaponCooldowns[key]--;
+            }
+        }
     }
 }
 

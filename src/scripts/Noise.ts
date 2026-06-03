@@ -268,6 +268,21 @@ export const generateHeightMap = (size: number, seed: number = 20): { heightMap:
   let textureUrl = "";
 
   if (ctx) {
+    // Draw grid lines first (shows through semi-transparent water, hidden under opaque land)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= size; i++) {
+      const pos = i * resPerTile + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(pos, 0);
+      ctx.lineTo(pos, canvasSize);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, pos);
+      ctx.lineTo(canvasSize, pos);
+      ctx.stroke();
+    }
+
     const imgData = ctx.createImageData(canvasSize, canvasSize);
     for (let py = 0; py < canvasSize; py++) {
       for (let px = 0; px < canvasSize; px++) {
@@ -290,52 +305,63 @@ export const generateHeightMap = (size: number, seed: number = 20): { heightMap:
 
         const idx = (py * canvasSize + px) * 4;
 
-        if (n > 0) {
-          if (n <= 0.2) {
-            // deep water
-            imgData.data[idx] = 140;
-            imgData.data[idx+1] = 192;
-            imgData.data[idx+2] = 235;
-            imgData.data[idx+3] = 0;
-          } else if (n < 0.3) {
-            // shallow water
-            imgData.data[idx] = 191;
-            imgData.data[idx+1] = 221;
-            imgData.data[idx+2] = 240;
-            imgData.data[idx+3] = 255;
-          } else if (n < 0.35) {
-            // sand
-            imgData.data[idx] = 255;
-            imgData.data[idx+1] = 235;
-            imgData.data[idx+2] = 204;
-            imgData.data[idx+3] = 255;
-          } else if (n < 0.45) {
-            // grass
-            imgData.data[idx] = 0;
-            imgData.data[idx+1] = 185;
-            imgData.data[idx+2] = 0;
-            imgData.data[idx+3] = 255;
-          } else if (n < 0.55) {
-            // thick grass
-            imgData.data[idx] = 0;
-            imgData.data[idx+1] = 150;
-            imgData.data[idx+2] = 0;
-            imgData.data[idx+3] = 255;
-          } else if (n < 0.85) {
-            // rock
-            imgData.data[idx] = 179;
-            imgData.data[idx+1] = 145;
-            imgData.data[idx+2] = 104;
-            imgData.data[idx+3] = 255;
+        if (n < 0.3) {
+          // Ocean layers — 4 contour bands with wavy edges
+          // Perturb depth with noise for undulating wave boundaries
+          const wave1 = (pn.noise(gridX * 1.2, gridY * 1.2, 0.3) - 0.5) * 0.08;
+          const wave2 = (pn.noise(gridX * 0.7, gridY * 0.7, 0.6) - 0.5) * 0.05;
+          const perturbedN = n + wave1 + wave2;
+
+          let r: number, g: number, b: number;
+          const wn = Math.floor((pn.noise(gridX * 2.5, gridY * 2.5, 0.9) - 0.5) * 20);
+
+          if (perturbedN < 0.10) {
+            // Layer 0 — deepest, widest
+            r = 4 + wn; g = 35 + wn; b = 75 + wn;
+          } else if (perturbedN < 0.16) {
+            // Layer 1
+            r = 20 + wn; g = 65 + wn; b = 125 + wn;
+          } else if (perturbedN < 0.22) {
+            // Layer 2
+            r = 55 + wn; g = 115 + wn; b = 175 + wn;
+          } else if (perturbedN < 0.26) {
+            // Layer 3
+            r = 100 + wn; g = 165 + wn; b = 220 + wn;
           } else {
-            // snow
-            imgData.data[idx] = 255;
-            imgData.data[idx+1] = 255;
-            imgData.data[idx+2] = 255;
-            imgData.data[idx+3] = 255;
+            // Layer 4 — shallowest (near islands)
+            r = 150 + wn; g = 200 + wn; b = 240 + wn;
           }
+          imgData.data[idx] = Math.max(0, Math.min(255, Math.floor(r)));
+          imgData.data[idx+1] = Math.max(0, Math.min(255, Math.floor(g)));
+          imgData.data[idx+2] = Math.max(0, Math.min(255, Math.floor(b)));
+          // Semi-transparent water: deeper = more transparent, shallower = more opaque
+          const waterAlpha = 140 + Math.floor((n / 0.3) * 85);
+          imgData.data[idx+3] = Math.min(255, waterAlpha);
+        } else if (n < 0.35) {
+          imgData.data[idx] = 255;
+          imgData.data[idx+1] = 235;
+          imgData.data[idx+2] = 204;
+          imgData.data[idx+3] = 255;
+        } else if (n < 0.45) {
+          imgData.data[idx] = 0;
+          imgData.data[idx+1] = 185;
+          imgData.data[idx+2] = 0;
+          imgData.data[idx+3] = 255;
+        } else if (n < 0.55) {
+          imgData.data[idx] = 0;
+          imgData.data[idx+1] = 150;
+          imgData.data[idx+2] = 0;
+          imgData.data[idx+3] = 255;
+        } else if (n < 0.85) {
+          imgData.data[idx] = 179;
+          imgData.data[idx+1] = 145;
+          imgData.data[idx+2] = 104;
+          imgData.data[idx+3] = 255;
         } else {
-          imgData.data[idx+3] = 0;
+          imgData.data[idx] = 255;
+          imgData.data[idx+1] = 255;
+          imgData.data[idx+2] = 255;
+          imgData.data[idx+3] = 255;
         }
       }
     }

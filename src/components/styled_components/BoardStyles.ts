@@ -1,6 +1,6 @@
 import styled from "styled-components";
 
-const BoardContainer = styled.div<{ $size?: number }>`
+const BoardContainer = styled.div<{ $size?: number; $zoom?: number }>`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -8,15 +8,71 @@ const BoardContainer = styled.div<{ $size?: number }>`
   .board-viewport-shell {
     position: relative;
     max-width: 100%;
+    padding-left: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .board-zoom-control {
+    position: absolute;
+    left: 50%;
+    bottom: 2rem;
+    transform: translateX(-50%);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    pointer-events: auto;
+    opacity: 0.3;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+
+    &:hover {
+      opacity: 0.85;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    input[type=range] {
+      width: 5rem;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255,255,255,0.35);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+
+      &::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: white;
+        border: none;
+        cursor: pointer;
+      }
+    }
+
+    span {
+      color: white;
+      font-size: 0.8rem;
+      font-weight: 600;
+      min-width: 3.2rem;
+      text-align: center;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    }
   }
 
   .board-axis-y-viewport,
   .board-axis-x-viewport {
     position: absolute;
-    z-index: 35;
+    z-index: 100;
     pointer-events: none;
     overflow: hidden;
-    background-color: ${({ theme }) => theme.colors.gridBackground};
+    background-color: ${({ theme }) => theme.colors.background};
+    color: rgba(255, 255, 255, 0.92);
   }
 
   .board-axis-y-viewport {
@@ -26,23 +82,25 @@ const BoardContainer = styled.div<{ $size?: number }>`
   }
 
   .board-axis-x-viewport {
-    left: 0;
+    left: 1.5rem;
     bottom: 0;
     height: 1.5rem;
     max-width: calc(100vw - 2rem);
   }
 
-  .board-axis-y-layer,
-  .board-axis-x-layer {
-    position: relative;
-    width: 100%;
-    height: 100%;
-  }
 
   .board-viewport {
     max-width: calc(100vw - 2rem);
     position: relative;
-    scrollbar-width: thin;
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   .board-zoom-space {
@@ -58,8 +116,8 @@ const BoardContainer = styled.div<{ $size?: number }>`
 
   .board-minimap {
     position: absolute;
-    right: 0.6rem;
-    bottom: 0.6rem;
+    right: 1rem;
+    bottom: 2.5rem;
     width: 6.5rem;
     aspect-ratio: 1;
     z-index: 30;
@@ -109,10 +167,14 @@ const BoardContainer = styled.div<{ $size?: number }>`
     display: flex;
     align-items: center;
     justify-content: center;
-    color: rgba(255, 255, 255, 0.92);
-    font-size: 0.85rem;
+    color:${({ theme }) => theme.colors.displayBorder};
+    background-color: ${({ theme }) => theme.colors.background};
+    font-size: 1rem;
     font-weight: 700;
     line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
     transform-origin: center;
   }
@@ -135,8 +197,6 @@ const BoardContainer = styled.div<{ $size?: number }>`
     position: relative; /* Container for absolute ships */
     display: flex;
     flex-direction: column;
-    padding-left: 1.5rem; /* Space for row numbers */
-    padding-bottom: 1.5rem; /* Space for column letters */
     counter-reset: row column;
     font-size: 1rem;
     font-weight: 700;
@@ -171,8 +231,8 @@ const BoardContainer = styled.div<{ $size?: number }>`
       .board-tile {
         position: relative;
         counter-increment: column;
-        width: calc((14rem + 10vw) / ${({ $size }) => $size || 10});
-        height: calc((14rem + 10vw) / ${({ $size }) => $size || 10});
+        width: calc(((14rem + 10vw) / ${({ $size }) => $size || 10}) * ${({ $zoom }) => $zoom || 1});
+        height: calc(((14rem + 10vw) / ${({ $size }) => $size || 10}) * ${({ $zoom }) => $zoom || 1});
         margin: .1rem;
         background-color: ${({ theme }) => theme.colors.gridBackground};
         border: 1px solid rgba(255, 255, 255, 0.2);
@@ -184,6 +244,7 @@ const BoardContainer = styled.div<{ $size?: number }>`
       .land-tile-logic {
         /* Logical land tiles are visually handled by texture overlay */
         border-color: transparent;
+        cursor: not-allowed;
       }
 
         .ship-not-hit {
@@ -199,7 +260,7 @@ const BoardContainer = styled.div<{ $size?: number }>`
             position: absolute;
             font-family: 'Font Awesome 5 Free', sans-serif;
             font-weight: 1000;
-            font-size: 15px;
+            font-size: calc(15px * ${({ $zoom }) => $zoom || 1});
             left: 50%;
             top: 52%;
             transform: translate(-50%, -50%);
@@ -214,7 +275,7 @@ const BoardContainer = styled.div<{ $size?: number }>`
             position: absolute;
             font-family: 'Font Awesome 5 Free', sans-serif;
             font-weight: 1000;
-            font-size: 15px;
+            font-size: calc(15px * ${({ $zoom }) => $zoom || 1});
             left: 50%;
             top: 52%;
             transform: translate(-50%, -50%);
@@ -229,7 +290,7 @@ const BoardContainer = styled.div<{ $size?: number }>`
             position: absolute;
             font-family: 'Font Awesome 5 Free', sans-serif;
             font-weight: 1000;
-            font-size: 7px;
+            font-size: calc(7px * ${({ $zoom }) => $zoom || 1});
             left: 50%;
             color: white;
             top: 50%;
@@ -243,7 +304,7 @@ const BoardContainer = styled.div<{ $size?: number }>`
           &::before {
             content: '●';
             position: absolute;
-            font-size: 10px;
+            font-size: calc(10px * ${({ $zoom }) => $zoom || 1});
             left: 50%;
             color: #FFE0B2;
             top: 50%;
