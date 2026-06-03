@@ -12,6 +12,59 @@ const BoardContainer = styled.div<{ $size?: number; $zoom?: number }>`
     padding-bottom: 1.5rem;
   }
 
+  .board-zoom-control {
+    position: absolute;
+    left: 50%;
+    bottom: 2rem;
+    transform: translateX(-50%);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    pointer-events: auto;
+    opacity: 0.3;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+
+    &:hover {
+      opacity: 0.85;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    input[type=range] {
+      width: 5rem;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255,255,255,0.35);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+
+      &::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: white;
+        border: none;
+        cursor: pointer;
+      }
+    }
+
+    span {
+      color: white;
+      font-size: 0.8rem;
+      font-weight: 600;
+      min-width: 3.2rem;
+      text-align: center;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    }
+  }
+
   .board-axis-y-viewport,
   .board-axis-x-viewport {
     position: absolute;
@@ -29,7 +82,7 @@ const BoardContainer = styled.div<{ $size?: number; $zoom?: number }>`
   }
 
   .board-axis-x-viewport {
-    left: 0;
+    left: 1.5rem;
     bottom: 0;
     height: 1.5rem;
     max-width: calc(100vw - 2rem);
@@ -39,6 +92,9 @@ const BoardContainer = styled.div<{ $size?: number; $zoom?: number }>`
   .board-viewport {
     max-width: calc(100vw - 2rem);
     position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
     scrollbar-width: none;
     -ms-overflow-style: none;
 

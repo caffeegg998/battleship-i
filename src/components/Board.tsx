@@ -339,16 +339,16 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   const cellSize = `calc(${tileBaseSize} + (${tileMargin} * 2))`;
   const baseCellSize = `calc((14rem + 10vw) / ${size} + (${tileMargin} * 2))`;
   const paddingLeft = "0rem";
-  const axisLabelLeft = "1.5rem";
   const baseBoardWidth = `calc(${size} * ${cellSize})`;
   const XTitleWidth = `calc((${size} + 1) * ${cellSize})`;
+  const XTitleMaxWidth = `calc(40vw - 3.5rem)`;
   const baseBoardHeight = `calc(${size} * ${cellSize})`;
   const viewportWidth = `calc(${size} * ${baseCellSize})`;
   const viewportHeight = `calc(${size} * ${baseCellSize})`;
   const boardViewportStyle = {
     width: viewportWidth,
     height: viewportHeight,
-    overflow: mapZoom > 1 ? 'auto' : 'visible',
+    ...(mapZoom > 1 ? { overflow: 'auto' } : {}),
   } as React.CSSProperties;
   const boardZoomSpaceStyle = {
     width: baseBoardWidth,
@@ -404,14 +404,14 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
         key={`axis-x-${col}`}
         className="board-axis-label board-axis-x-label"
         style={{
-          left: `calc(${axisLabelLeft} + (${col} * ${cellSize}) + ((${cellSize}) / 2) - ${viewportScroll.left}px)`,
+          left: `calc((${col} * ${cellSize}) + ((${cellSize}) / 2) - ${viewportScroll.left}px)`,
           transform: `translateX(-50%)`,
         }}
       >
         {getColumnLabel(col)}
       </div>
     ))
-  ), [mapZoom, cellSize, axisLabelLeft, size, viewportScroll.left]);
+  ), [mapZoom, cellSize, size, viewportScroll.left]);
 
   const yAxisLayerStyle = {
     transformOrigin: 'top left',
@@ -422,18 +422,38 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   } as React.CSSProperties;
 
   return (
-    <BoardContainer $size={size} $zoom={mapZoom}>
-      <div ref={shellRef} className="board-viewport-shell">
-        <div className="board-axis-y-viewport" style={{ height: `calc(${size} * ${cellSize})`,maxHeight: `calc(30rem)`  }}>
-          <div className="board-axis-y-layer" style={yAxisLayerStyle}>
-            {yAxisLabels}
-          </div>
+   
+     <BoardContainer $size={size} $zoom={mapZoom}>
+      <div ref={shellRef} className="board-viewport-shell" >
+        <div className="board-zoom-control" >
+          <input
+            type="range"
+            min={1}
+            max={3}
+            step={0.1}
+            value={mapZoom}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              setMapZoom(v);
+              requestAnimationFrame(() => updateMinimapViewport());
+            }}
+          />
+          <span>{Math.round(mapZoom * 100)}%</span>
         </div>
-        <div className="board-axis-x-viewport" style={{ width: XTitleWidth,maxWidth: `calc(26.25rem + 3.75vw)` }}>
-          <div className="board-axis-x-layer" style={xAxisLayerStyle}>
-            {xAxisLabels}
-          </div>
-        </div>
+       
+      <div className="board-axis-y-viewport" style={{ height: viewportHeight, maxHeight: viewportHeight, overflow: 'hidden', contain: 'paint' }}>
+              <div className="board-axis-y-layer" style={{...yAxisLayerStyle, overflow: 'hidden', width: '100%', height: '100%', contain: 'paint'}}>
+                {yAxisLabels}
+              </div>
+            </div>
+            <div className="board-axis-x-viewport" style={{ width: viewportWidth, maxWidth: viewportWidth, overflow: 'hidden', contain: 'paint' }}>
+              <div className="board-axis-x-layer" style={{...xAxisLayerStyle, overflow: 'hidden', width: '100%', height: '100%', contain: 'paint'}}>
+                {xAxisLabels}
+              </div>
+            </div>
+
+
+        
         <div
           ref={viewportRef}
           className={`board-viewport ${mapZoom > 1 ? 'zoomed' : ''}`}
@@ -523,12 +543,13 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
                pointerEvents: 'none',
                zIndex: 7
              }}>
-               <ShipVisual 
-                 length={marked.getLength} 
-                 direction={marked.getDirection} 
-                 index={marked.shipType === "submarine" ? 1 : 0} 
-                 boardSize={size}
-               />
+                <ShipVisual 
+                  length={marked.getLength} 
+                  direction={marked.getDirection} 
+                  index={marked.shipType === "submarine" ? 1 : 0} 
+                  boardSize={size}
+                  zoom={mapZoom}
+                />
              </div>
            );
          })()}
@@ -551,19 +572,19 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
                 justifyContent: 'center',
               }}>
                 <div style={{
-  width: '85%',
-  height: '85%',
-  borderRadius: '2px',
-  // Sử dụng màu RGBA để chỉ làm mờ nền (0.5 là độ mờ 50%)
-  backgroundColor: isSunk ? 'rgba(200, 107, 133, 0.5)' : 'rgba(187, 187, 187, 0.4)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  color: 'white', // Chữ X vẫn sẽ hiển thị rõ 100%
-  fontWeight: 1000,
-  fontSize: 'clamp(8px, 1.2vw, 16px)',
-  fontFamily: "'Font Awesome 5 Free', sans-serif",
-}}>
+                  width: '85%',
+                  height: '85%',
+                  borderRadius: '2px',
+                  // Sử dụng màu RGBA để chỉ làm mờ nền (0.5 là độ mờ 50%)
+                  backgroundColor: isSunk ? 'rgba(200, 107, 133, 0.5)' : 'rgba(187, 187, 187, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white', // Chữ X vẫn sẽ hiển thị rõ 100%
+                  fontWeight: 1000,
+                  fontSize: 'clamp(8px, 1.2vw, 16px)',
+                  fontFamily: "'Font Awesome 5 Free', sans-serif",
+                }}>
   ✕
 </div>
               </div>
@@ -655,6 +676,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
       </div>
       <Header>{`${getHeaderName()} board`}</Header>
     </BoardContainer>
+ 
   );
 }
 
