@@ -424,12 +424,12 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   return (
     <BoardContainer $size={size} $zoom={mapZoom}>
       <div ref={shellRef} className="board-viewport-shell">
-        <div className="board-axis-y-viewport" style={{ height: `calc(${size} * ${cellSize})` }}>
+        <div className="board-axis-y-viewport" style={{ height: `calc(${size} * ${cellSize})`,maxHeight: `calc(30rem)`  }}>
           <div className="board-axis-y-layer" style={yAxisLayerStyle}>
             {yAxisLabels}
           </div>
         </div>
-        <div className="board-axis-x-viewport" style={{ width: XTitleWidth }}>
+        <div className="board-axis-x-viewport" style={{ width: XTitleWidth,maxWidth: `calc(26.25rem + 3.75vw)` }}>
           <div className="board-axis-x-layer" style={xAxisLayerStyle}>
             {xAxisLabels}
           </div>
