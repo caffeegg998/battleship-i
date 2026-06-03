@@ -29,6 +29,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   const zKeyRef = useRef(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const boardWrapperRef = useRef<HTMLDivElement | null>(null);
+  const zoomSpaceRef = useRef<HTMLDivElement | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
   const minimapRef = useRef<HTMLDivElement | null>(null);
   const [baseBoardSize, setBaseBoardSize] = useState({ width: 0, height: 0 });
@@ -39,6 +40,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
     width: 100,
     height: 100,
   });
+  const zoomScrollRef = useRef<{left: number, top: number} | null>(null);
 
   const board = game.getPlayer(player).getBoard;
   const boardShips = board.getShips;
@@ -311,20 +313,37 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
       const rect = viewport.getBoundingClientRect();
       const pointerX = e.clientX - rect.left;
       const pointerY = e.clientY - rect.top;
-      const contentX = (viewport.scrollLeft + pointerX) / currentZoom;
-      const contentY = (viewport.scrollTop + pointerY) / currentZoom;
+
+      // Clamp pointer to visible content area
+      const maxPx = Math.max(0, Math.min(viewport.scrollWidth - viewport.scrollLeft, viewport.clientWidth) - 1);
+      const maxPy = Math.max(0, Math.min(viewport.scrollHeight - viewport.scrollTop, viewport.clientHeight) - 1);
+      const cPx = Math.min(pointerX, maxPx);
+      const cPy = Math.min(pointerY, maxPy);
+
+      const contentX = (viewport.scrollLeft + cPx) / currentZoom;
+      const contentY = (viewport.scrollTop + cPy) / currentZoom;
 
       setMapZoom(nextZoom);
-      requestAnimationFrame(() => {
-        viewport.scrollLeft = Math.max(0, contentX * nextZoom - pointerX);
-        viewport.scrollTop = Math.max(0, contentY * nextZoom - pointerY);
-        updateMinimapViewport();
-      });
+      zoomScrollRef.current = {
+        left: Math.max(0, contentX * nextZoom - cPx),
+        top: Math.max(0, contentY * nextZoom - cPy),
+      };
+      updateMinimapViewport();
     };
 
     viewport.addEventListener('wheel', onWheel, { passive: false });
     return () => viewport.removeEventListener('wheel', onWheel);
   }, [mapZoom, updateMinimapViewport]);
+
+  useLayoutEffect(() => {
+    const vs = zoomScrollRef.current;
+    if (!vs) return;
+    zoomScrollRef.current = null;
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    viewport.scrollLeft = vs.left;
+    viewport.scrollTop = vs.top;
+  }, [mapZoom]);
 
   const getHeaderName = () => {
     if (gameMode === 'multiplayer' || gameMode === 'lobby') {
@@ -434,8 +453,18 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
             value={mapZoom}
             onChange={(e) => {
               const v = parseFloat(e.target.value);
+              const viewport = viewportRef.current;
+              const oldZoom = mapZoom;
               setMapZoom(v);
-              requestAnimationFrame(() => updateMinimapViewport());
+              if (viewport) {
+                const cx = viewport.scrollLeft + viewport.clientWidth / 2;
+                const cy = viewport.scrollTop + viewport.clientHeight / 2;
+                zoomScrollRef.current = {
+                  left: Math.max(0, (cx / oldZoom) * v - viewport.clientWidth / 2),
+                  top: Math.max(0, (cy / oldZoom) * v - viewport.clientHeight / 2),
+                };
+              }
+              updateMinimapViewport();
             }}
           />
           <span>{Math.round(mapZoom * 100)}%</span>
@@ -653,7 +682,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
       </div>
           </div>
         </div>
-        {mapZoom > 1 && (
+          {mapZoom > 1 && (
           <div
             ref={minimapRef}
             className="board-minimap"
@@ -662,6 +691,33 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
           >
             {textureUrl && <img src={textureUrl} alt="" />}
             <div className="board-minimap-grid" />
+            {boardShips.map((ship, i) => {
+              const [r, c] = ship.getOrigin;
+              const len = ship.getLength;
+              const dir = ship.getDirection;
+              const isSunk = ship.isSunk();
+              const pct = (v: number) => `${(v / size) * 100}%`;
+              let left: number, top: number, w: number, h: number;
+              if (dir === 0) { left = c - len + 1; top = r; w = len; h = 1; }
+              else if (dir === 90) { left = c; top = r - len + 1; w = 1; h = len; }
+              else if (dir === 180) { left = c; top = r; w = len; h = 1; }
+              else { left = c; top = r; w = 1; h = len; }
+              return (
+                <div key={`minimap-ship-${i}`} style={{
+                  position: 'absolute',
+                  left: pct(left < 0 ? 0 : left),
+                  top: pct(top < 0 ? 0 : top),
+                  width: pct(w),
+                  height: pct(h),
+                  backgroundColor: isSunk ? 'rgba(180,180,180,0.7)' : 'rgba(60,60,60,0.8)',
+                  borderRadius: '2px',
+                  border: isSunk ? '1px solid #888' : '1px solid #ccc',
+                  boxSizing: 'border-box',
+                  pointerEvents: 'none',
+                  zIndex: 2,
+                }} />
+              );
+            })}
             <div
               className="board-minimap-viewport"
               style={{
