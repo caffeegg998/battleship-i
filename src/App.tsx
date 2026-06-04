@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import Boards from "./components/Boards";
 import Confetti from "./components/Confetti";
 import Game from "./scripts/Game";
-import { generateHeightMap } from "./scripts/Noise";
-import { Display, DisplayWrapper, Buttons, Header, HeaderWrapper, Title } from "./components/styled_components/AppStyles";
+import { generateUnifiedMap } from "./scripts/Noise";
+import { Display, DisplayWrapper, Buttons, HeaderWrapper, Title } from "./components/styled_components/AppStyles";
 import { FaWater, FaDiceD6, FaRecycle, FaPlay, FaUndo, FaSignOutAlt, FaRobot } from "react-icons/fa";
+import RetroBtn from "./components/RetroBtn";
 import { io, Socket } from "socket.io-client";
 
 const App = () => {
@@ -94,15 +95,15 @@ const App = () => {
         setGameMode('multiplayer');
         setMultiplayerStatus('Joined room. Waiting for opponent...');
 
-        // Re-initialize game with correct board size and unique heightmaps
-        const myMapData = generateHeightMap(boardSize, mySeed);
-        const opponentMapData = generateHeightMap(boardSize, opponentSeed);
+        // Re-initialize game with correct board size and unified heightmap
+        const unifiedSeed = (mySeed + opponentSeed) % 1000000;
+        const mapData = generateUnifiedMap(boardSize, unifiedSeed);
         
         const newGame = new Game(
           ships, 
           boardSize, 
-          [myMapData.heightMap, opponentMapData.heightMap],
-          [myMapData.textureUrl, opponentMapData.textureUrl]
+          [mapData.leftHeightMap, mapData.rightHeightMap],
+          [mapData.leftTextureUrl, mapData.rightTextureUrl]
         );
         newGame.getPlayer(0).setName(playerName);
         newGame.getPlayer(0).setAvatar(localAvatar);
@@ -159,8 +160,10 @@ const App = () => {
       });
 
       socket.on('opponent_renewed_islands', ({ playerIndex, newSeed }) => {
-        const mapData = generateHeightMap(boardSize, newSeed);
-        game.getPlayer(1).getBoard.setHeightMap(mapData.heightMap, mapData.textureUrl);
+        const mapData = generateUnifiedMap(boardSize, newSeed);
+        game.getPlayer(0).getBoard.setHeightMap(mapData.leftHeightMap, mapData.leftTextureUrl);
+        game.getPlayer(1).getBoard.setHeightMap(mapData.rightHeightMap, mapData.rightTextureUrl);
+        setMySeed(newSeed);
         setOpponentSeed(newSeed);
         setGame(Object.assign(Object.create(Object.getPrototypeOf(game)), game));
         setReset(true);
@@ -237,29 +240,25 @@ const App = () => {
   }
 
   const regenerateIslands = () => {
-    const s1 = Math.floor(Math.random() * 1000000);
-    const m1 = generateHeightMap(boardSize, s1);
-    const opponentBoard = game.getPlayer(1).getBoard;
-    let opponentMapData = opponentBoard.getHeightMap;
-    let opponentTextureUrl = opponentBoard.getTextureUrl;
+    const seed = Math.floor(Math.random() * 1000000);
+    const mapData = generateUnifiedMap(boardSize, seed);
 
     if (gameMode === 'multiplayer' && socketRef.current && roomId) {
       socketRef.current.emit('renew_islands', { 
         roomId, 
-        newSeed: s1,
+        newSeed: seed,
         playerName,
         avatar: localAvatar
       });
-      opponentMapData = game.getPlayer(1).getBoard.getHeightMap;
-      opponentTextureUrl = game.getPlayer(1).getBoard.getTextureUrl;
     }
 
-    const newGame = new Game(ships, boardSize, [m1.heightMap, opponentMapData], [m1.textureUrl, opponentTextureUrl]);
+    const newGame = new Game(ships, boardSize, [mapData.leftHeightMap, mapData.rightHeightMap], [mapData.leftTextureUrl, mapData.rightTextureUrl]);
     newGame.getPlayer(0).setName(game.getPlayer(0).getName);
     newGame.getPlayer(0).setAvatar(game.getPlayer(0).getAvatar);
     newGame.getPlayer(1).setName(game.getPlayer(1).getName);
     newGame.getPlayer(1).setAvatar(game.getPlayer(1).getAvatar);
-    setMySeed(s1);
+    setMySeed(seed);
+    setOpponentSeed(seed);
     setGame(newGame);
     setReset(true);
     setTimeout(() => setReset(false), 0);
@@ -287,14 +286,14 @@ const App = () => {
   }
 
   const restartGame = async () => {
-    const myMapData = generateHeightMap(boardSize, mySeed);
-    const opponentMapData = generateHeightMap(boardSize, opponentSeed);
+    const unifiedSeed = (mySeed + opponentSeed) % 1000000;
+    const mapData = generateUnifiedMap(boardSize, unifiedSeed);
     
     const newGame = new Game(
         ships, 
         boardSize, 
-        [myMapData.heightMap, opponentMapData.heightMap],
-        [myMapData.textureUrl, opponentMapData.textureUrl]
+        [mapData.leftHeightMap, mapData.rightHeightMap],
+        [mapData.leftTextureUrl, mapData.rightTextureUrl]
     );
     if (gameMode === 'multiplayer' && playerIndex === 1) {
         newGame.next();
@@ -338,14 +337,12 @@ const App = () => {
 
   const getMultiplayerButton = () => {
     if (isLocalReady) {
-      return <button className="startGame disabled" type="button" title="Waiting for opponent..."><FaRecycle /></button>;
+      return <RetroBtn label="Waiting..." title="Waiting for opponent..." disabled color="secondary" size="sm"><FaRecycle /></RetroBtn>;
     }
-    const buttonIcon = isOpponentReady ? <FaPlay /> : <FaDiceD6 />;
+    const buttonLabel = isOpponentReady ? "Start Game" : "Ready";
     const buttonTitle = isOpponentReady ? "Start Game" : "Ready";
-    return <button className="startGame" type="button" title={buttonTitle} onClick={() => {
-      initGame();
-      setIsLocalReady(true);
-    }}>{buttonIcon}</button>;
+    const buttonIcon = isOpponentReady ? <FaPlay /> : <FaDiceD6 />;
+    return <RetroBtn label={buttonLabel} onClick={() => { initGame(); setIsLocalReady(true); }} title={buttonTitle} color="success" size="sm">{buttonIcon}</RetroBtn>;
   }
 
   if (gameMode === null) {
@@ -353,7 +350,9 @@ const App = () => {
       <div className="app">
         <HeaderWrapper>
           <Title>
-            <FaWater/><Header>Battleship</Header><FaWater/>
+            <div className="header-wrap">
+              <h1>Battleship</h1>
+            </div>
           </Title>
         </HeaderWrapper>
         <DisplayWrapper>
@@ -374,23 +373,21 @@ const App = () => {
               </select>
             </div>
             <Buttons>
-              <button className="startGame" onClick={() => {
+              <RetroBtn label="Single Player (vs Computer)" onClick={() => {
                 setGameMode('singleplayer');
-                const s1 = Math.floor(Math.random() * 1000000);
-                const s2 = Math.floor(Math.random() * 1000000);
-                const m1 = generateHeightMap(boardSize, s1);
-                const m2 = generateHeightMap(boardSize, s2);
+                const seed = Math.floor(Math.random() * 1000000);
+                const mapData = generateUnifiedMap(boardSize, seed);
                 
-                const singleGame = new Game(ships, boardSize, [m1.heightMap, m2.heightMap], [m1.textureUrl, m2.textureUrl]);
+                const singleGame = new Game(ships, boardSize, [mapData.leftHeightMap, mapData.rightHeightMap], [mapData.leftTextureUrl, mapData.rightTextureUrl]);
                 singleGame.getPlayer(0).setName(playerName);
                 singleGame.getPlayer(0).setAvatar(localAvatar);
                 setGame(singleGame);
-                setMySeed(s1);
-                setOpponentSeed(s2);
+                setMySeed(seed);
+                setOpponentSeed(seed);
                 setReset(true);
                 setTimeout(() => setReset(false), 0);
-              }}>Single Player (vs Computer)</button>
-              <button className="startGame" onClick={() => setGameMode('lobby')}>Multiplayer</button>
+              }} color="teal" size="md" />
+              <RetroBtn label="Multiplayer" onClick={() => setGameMode('lobby')} color="primary" size="md" />
             </Buttons>
           </Display>
         </DisplayWrapper>
@@ -403,7 +400,9 @@ const App = () => {
       <div className="app">
         <HeaderWrapper>
           <Title>
-            <FaWater/><Header>Battleship Lobby</Header><FaWater/>
+            <div className="header-wrap">
+              <h1>Battleship Lobby</h1>
+            </div>
           </Title>
         </HeaderWrapper>
         <DisplayWrapper>
@@ -434,7 +433,7 @@ const App = () => {
             </div>
 
             <Buttons style={{margin: '1rem 0'}}>
-              <button className="startGame" onClick={createRoom} style={{width: '100%'}}>Create New Room</button>
+              <RetroBtn label="Create New Room" onClick={createRoom} color="primary" size="md" />
             </Buttons>
 
             <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
@@ -447,14 +446,14 @@ const App = () => {
                   onChange={(e) => setRoomId(e.target.value)}
                   style={{padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', flex: 1}}
                 />
-                <button className="startGame" onClick={() => handleJoinRoom(roomId)} style={{padding: '0 1rem'}}>Join</button>
+                <RetroBtn label="Join" onClick={() => handleJoinRoom(roomId)} color="success" size="sm" />
               </div>
             </div>
 
             <div style={{marginTop: '1rem', borderTop: '1px solid #ddd', paddingTop: '1rem'}}>
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem'}}>
                 <h3 style={{fontSize: '1rem', margin: 0}}>Active Rooms ({lobbyRooms.length})</h3>
-                <button className="startGame" style={{padding: '0.3rem 0.8rem', fontSize: '0.8rem', margin: 0}} onClick={() => socketRef.current?.emit('request_room_list')}>Refresh</button>
+                <RetroBtn label="Refresh" onClick={() => socketRef.current?.emit('request_room_list')} color="info" size="sm" />
               </div>
               {lobbyRooms.length === 0 ? (
                 <div style={{color: 'gray', fontSize: '0.9rem'}}>No active rooms waiting. Create one!</div>
@@ -467,14 +466,14 @@ const App = () => {
                         <small>Host: {room.hostName}</small><br/>
                         <small>Map: {room.boardSize}x{room.boardSize}</small>
                       </div>
-                      <button className="startGame" style={{padding: '0.3rem 0.8rem', fontSize: '0.8rem'}} onClick={() => handleJoinRoom(room.roomId)}>Join</button>
+                      <RetroBtn label="Join" onClick={() => handleJoinRoom(room.roomId)} color="success" size="sm" />
                     </li>
                   ))}
                 </ul>
               )}
             </div>
 
-            <button className="startGame disabled" style={{marginTop: '1rem', alignSelf: 'center'}} onClick={() => setGameMode(null)}>Back</button>
+            <RetroBtn label="Back" onClick={() => setGameMode(null)} color="secondary" size="sm" style={{marginTop: '1rem', alignSelf: 'center'}} />
           </Display>
         </DisplayWrapper>
       </div>
@@ -482,86 +481,16 @@ const App = () => {
   }
 
   return (
-    <div className="app">
-      <HeaderWrapper>
-        <Title>
-          <FaWater/><Header>Battleship</Header><FaWater/>
-        </Title>
-      </HeaderWrapper>
+      <div className="app">
+        <div className="header-wrap">
+          <h1>Battleship</h1>
+        </div>
       {gameMode === 'multiplayer' && (
         <div style={{textAlign: 'center', margin: '0.5rem', fontWeight: 'bold'}}>
           Room: {roomId} | Map: {boardSize}x{boardSize} | Status: {multiplayerStatus}
         </div>
       )}
-      <Buttons>
-          {!init && (
-            <>
-              <button className="startGame" type="button" onClick={randomizeShips} title="Auto Place">
-                <FaDiceD6 />
-              </button>
-              <button className="startGame" type="button" onClick={regenerateIslands} title="Renew Islands">
-                <FaRecycle />
-              </button>
-            </>
-          )}
-          {init && (
-            <>
-              <button
-                type="button"
-                onClick={() => setAutoPlay(!autoPlay)}
-                title={autoPlay ? "Stop Auto Play" : "Auto Play"}
-                style={{
-                  background: autoPlay ? '#27ae60' : undefined,
-                  border: '2px solid',
-                  borderColor: autoPlay ? '#1e8449' : '#aaa',
-                  color: autoPlay ? 'white' : '#aaa',
-                  cursor: 'pointer',
-                  borderRadius: '5px',
-                  padding: '.5rem .7rem',
-                  fontSize: '1rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  lineHeight: 1,
-                }}
-              >
-                <FaRobot />
-              </button>
-              {autoPlay && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginLeft: '0.3rem' }}>
-                  <span style={{ fontSize: '0.7rem', color: '#888' }}>🐢</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={2000}
-                    step={50}
-                    value={autoPlayDelay}
-                    onChange={(e) => setAutoPlayDelay(Number(e.target.value))}
-                    style={{ width: '80px', cursor: 'pointer' }}
-                    title={`Delay: ${autoPlayDelay}ms`}
-                  />
-                  <span style={{ fontSize: '0.7rem', color: '#888' }}>🐇</span>
-                  <span style={{ fontSize: '0.65rem', color: '#666', minWidth: '2.5rem' }}>{autoPlayDelay}ms</span>
-                </div>
-              )}
-            </>
-          )}
-        {
-          !init ? (gameMode === 'multiplayer' ? getMultiplayerButton() : <button className="startGame" type="button" onClick={initGame} title="Start Game"><FaPlay /></button>)
-          : (gameMode === 'singleplayer' && (game.getTurn === 0 || game.getWinner !== -1)) || (gameMode === 'multiplayer' && game.getWinner !== -1) ? 
-            <button className="startGame" type="button" onClick={restartGame} title="Restart Game"><FaUndo /></button>
-            : <button className="startGame disabled" type="button" title="Restart Game"><FaUndo /></button>
-        }
-        {gameMode === 'multiplayer' && (
-          <button className="startGame" type="button" onClick={leaveRoom} title="Leave Room" style={{ backgroundColor: '#e74c3c', borderColor: '#c0392b' }}>
-            <FaSignOutAlt />
-          </button>
-        )}
-      </Buttons>
-      <DisplayWrapper>
-        <Display>
-          <h2 className={"display"}>{display}</h2>
-        </Display>
-      </DisplayWrapper>
+      {game.getWinner === 0 && <Confetti />}
       {game.getWinner === 0 && <Confetti />}
       <Boards 
         game={game} 
@@ -584,6 +513,63 @@ const App = () => {
         opponentSeed={opponentSeed}
         autoPlay={autoPlay}
         autoPlayDelay={autoPlayDelay}
+        toolbarButtons={<>
+            {!init && (
+              <>
+                <RetroBtn label="Auto Place" onClick={randomizeShips} title="Auto Place" color="primary" size="sm">
+                  <FaDiceD6 />
+                </RetroBtn>
+                <RetroBtn label="Renew Islands" onClick={regenerateIslands} title="Renew Islands" color="info" size="sm">
+                  <FaRecycle />
+                </RetroBtn>
+              </>
+            )}
+            {init && (
+              <>
+                <RetroBtn
+                  label={autoPlay ? "Stop Auto Play" : "Auto Play"}
+                  onClick={() => setAutoPlay(!autoPlay)}
+                  title={autoPlay ? "Stop Auto Play" : "Auto Play"}
+                  color={autoPlay ? "success" : "secondary"}
+                  size="sm"
+                >
+                  <FaRobot />
+                </RetroBtn>
+                {autoPlay && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <input
+                      type="range"
+                      min={0}
+                      max={2000}
+                      step={50}
+                      value={autoPlayDelay}
+                      onChange={(e) => setAutoPlayDelay(Number(e.target.value))}
+                      style={{ width: '80px', cursor: 'pointer' }}
+                      title={`Delay: ${autoPlayDelay}ms`}
+                    />
+                    <span style={{ fontSize: '0.65rem', color: '#888', minWidth: '2.5rem' }}>{autoPlayDelay}ms</span>
+                  </div>
+                )}
+              </>
+            )}
+            {!init ? (gameMode === 'multiplayer' ? getMultiplayerButton() :
+              <RetroBtn label="Start Game" onClick={initGame} title="Start Game" color="success" size="sm">
+                <FaPlay />
+              </RetroBtn>)
+            : (gameMode === 'singleplayer' && (game.getTurn === 0 || game.getWinner !== -1)) || (gameMode === 'multiplayer' && game.getWinner !== -1) ?
+              <RetroBtn label="Restart" onClick={restartGame} title="Restart Game" color="warning" size="sm">
+                <FaUndo />
+              </RetroBtn>
+              : <RetroBtn label="Restart" title="Restart Game" disabled color="warning" size="sm">
+                  <FaUndo />
+                </RetroBtn>
+            }
+            {gameMode === 'multiplayer' && (
+              <RetroBtn label="Leave" onClick={leaveRoom} title="Leave Room" color="danger" size="sm">
+                <FaSignOutAlt />
+              </RetroBtn>
+            )}
+          </>}
       />
     </div>
   );

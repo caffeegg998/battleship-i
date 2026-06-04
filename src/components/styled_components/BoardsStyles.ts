@@ -7,7 +7,10 @@ const BoardsContainer = styled.div`
   align-items: flex-start;
   gap: 2rem;
   position: relative;
-  margin-top: 5rem;
+  margin-top: 1rem;
+  padding-bottom: 0.5rem;
+  flex: 1;
+  overflow: hidden;
 
   @media (max-width: 1035px) {
     flex-direction: column;
@@ -61,18 +64,48 @@ const ExplosionOverlay = styled.div`
 `;
 
 const FooterContainer = styled.div`
+  position: sticky;
+  bottom: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.25rem 1rem;
+  background: rgba(30, 30, 40, 0.9);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+`;
+
+const FooterLeft = styled.div`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 1rem;
+  flex: 1;
+  min-width: 0;
+`;
+
+const FooterRight = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+`;
+
+const FooterRowWrapper = styled.div`
   display: flex;
   flex-direction: row;
   justify-content: center;
   align-items: flex-start;
-  gap: 2rem;
-  margin-top: 2rem;
-  padding: 0.75rem 2rem;
-  background: rgba(30, 30, 40, 0.85);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(4px);
+  gap: 1rem;
   width: 100%;
-  box-sizing: border-box;
 `;
 
 const FooterSection = styled.div`
@@ -80,8 +113,9 @@ const FooterSection = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.4rem;
-  min-width: 200px;
+  gap: 0.2rem;
+  flex: 1;
+  min-width: 0;
 `;
 
 const FooterLabel = styled.div`
@@ -96,14 +130,16 @@ const FooterRow = styled.div`
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
 `;
 
 const ShipsRow = styled.div`
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.3rem;
 `;
 
 const ShipTile = styled.div<{ $selected?: boolean; $sunk?: boolean }>`
@@ -126,4 +162,4 @@ const FooterDivider = styled.div`
   background: rgba(255, 255, 255, 0.1);
 `;
 
-export { BoardContainer, BoardsContainer, TimerDisplay, ExplosionOverlay, FooterContainer, FooterSection, FooterLabel, FooterRow, ShipsRow, ShipTile, FooterDivider };
+export { BoardContainer, BoardsContainer, TimerDisplay, ExplosionOverlay, FooterContainer, FooterSection, FooterLabel, FooterRow, ShipsRow, ShipTile, FooterDivider, FooterRowWrapper, FooterLeft, FooterRight };

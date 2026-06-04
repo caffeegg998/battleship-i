@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
 import Battleship from "../scripts/Battleship";
 import Game from "../scripts/Game";
-import { BoardContainer, Header } from "./styled_components/BoardStyles";
+import { BoardContainer } from "./styled_components/BoardStyles";
 import ShipVisual from "./ShipVisual";
 
 type BoardProps = {
@@ -345,18 +345,11 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
     viewport.scrollTop = vs.top;
   }, [mapZoom]);
 
-  const getHeaderName = () => {
-    if (gameMode === 'multiplayer' || gameMode === 'lobby') {
-      return player === 0 ? "Your" : "Opponent's";
-    }
-    return `${game.getPlayer(player).getName}`;
-  };
-
   // Math for positioning items accurately over the grid
-  const tileBaseSize = `calc(((14rem + 10vw) * ${mapZoom}) / ${size})`;
+  const tileBaseSize = `calc(((20rem + 14vw) * ${mapZoom}) / ${size})`;
   const tileMargin = "0.1rem";
   const cellSize = `calc(${tileBaseSize} + (${tileMargin} * 2))`;
-  const baseCellSize = `calc((14rem + 10vw) / ${size} + (${tileMargin} * 2))`;
+  const baseCellSize = `calc((20rem + 14vw) / ${size} + (${tileMargin} * 2))`;
   const paddingLeft = "0rem";
   const baseBoardWidth = `calc(${size} * ${cellSize})`;
   const XTitleWidth = `calc((${size} + 1) * ${cellSize})`;
@@ -442,7 +435,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
 
   return (
    
-     <BoardContainer $size={size} $zoom={mapZoom}>
+     <BoardContainer $size={size} $zoom={mapZoom} $axisRight={player === 1}>
       <div ref={shellRef} className="board-viewport-shell" >
         <div className="board-zoom-control" >
           <input
@@ -485,7 +478,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
         
         <div
           ref={viewportRef}
-          className={`board-viewport ${mapZoom > 1 ? 'zoomed' : ''}`}
+          className={`board-viewport ${mapZoom > 1 ? 'zoomed' : ''} ${active}`}
           onScroll={updateMinimapViewport}
           style={boardViewportStyle}
         >
@@ -730,7 +723,6 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
           </div>
         )}
       </div>
-      <Header>{`${getHeaderName()} board`}</Header>
     </BoardContainer>
  
   );

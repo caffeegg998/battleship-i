@@ -28,45 +28,72 @@ export const ProfileContainer = styled.div<{ align: 'left' | 'right' }>`
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 1rem;
-  width: 8rem;
-  margin-top: 1rem;
+  gap: 0.2rem;
+  width: auto;
+  margin-top: 0;
 `;
 
-export const Avatar = styled.div<{ $isSkeleton?: boolean }>`
-  width: 4rem;
-  height: 4rem;
+export const AvatarWrapper = styled.div<{ $ready?: boolean; $isSkeleton?: boolean }>`
+  position: relative;
+  width: 2.5rem;
+  height: 2.5rem;
+`;
+
+export const Avatar = styled.div<{ $isSkeleton?: boolean; $ready?: boolean }>`
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   background-color: ${({ theme }) => theme.colors.gridBackground};
-  border: 2px solid ${({ theme }) => theme.colors.displayBorder};
+  border: 2px solid ${({ $ready }) => $ready ? '#2ecc71' : '#666'};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: 1rem;
   font-weight: bold;
   color: ${({ theme }) => theme.colors.displayBorder};
   text-transform: uppercase;
+  overflow: hidden;
+  transition: border-color 0.2s;
   ${({ $isSkeleton }) => $isSkeleton && skeletonCss}
   ${({ $isSkeleton }) => $isSkeleton && `border-color: transparent; color: transparent;`}
 `;
 
+export const ReadyDot = styled.div<{ $ready: boolean }>`
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  background: ${({ $ready }) => $ready ? '#2ecc71' : '#666'};
+  border: 2px solid rgba(30, 30, 40, 0.9);
+`;
+
+export const TimerBadge = styled.div<{ $low: boolean }>`
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 1.2rem;
+  height: 1.2rem;
+  padding: 0 3px;
+  border-radius: 6px;
+  background: ${({ $low }) => $low ? '#e74c3c' : 'rgba(0, 0, 0, 0.7)'};
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  font-family: 'Montserrat', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+`;
+
 export const Name = styled.div<{ $isSkeleton?: boolean }>`
-  font-size: 1.1rem;
+  font-size: 0.8rem;
   font-weight: bold;
   text-align: center;
   word-break: break-all;
+  color: #fff;
   ${({ $isSkeleton }) => $isSkeleton && skeletonCss}
-  ${({ $isSkeleton }) => $isSkeleton && `color: transparent; border-radius: 4px; width: 80%; height: 1.2rem;`}
-`;
-
-export const Status = styled.div<{ $ready: boolean, $isSkeleton?: boolean }>`
-  font-size: 0.9rem;
-  font-weight: bold;
-  color: ${({ $ready }) => ($ready ? '#8db596' : '#9f5f80')};
-  background-color: ${({ theme }) => theme.colors.displayBackground};
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  border: 1px solid ${({ $ready }) => ($ready ? '#8db596' : '#9f5f80')};
-  ${({ $isSkeleton }) => $isSkeleton && skeletonCss}
-  ${({ $isSkeleton }) => $isSkeleton && `border-color: transparent; color: transparent; width: 60%; height: 1rem;`}
+  ${({ $isSkeleton }) => $isSkeleton && `color: transparent; border-radius: 4px; width: 80%; height: 1rem;`}
 `;

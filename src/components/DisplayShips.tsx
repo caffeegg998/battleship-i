@@ -22,8 +22,8 @@ const DisplayShips = ({player, ships, onShipClick, selectedIndex}: DisplayShipsP
             onClick={() => onShipClick?.(i)}
             style={{
               position: 'relative',
-              height: `calc(((14rem + 10vw) / 10) * ${zoom})`,
-              width: `calc((${ship.getLength} * ((14rem + 10vw) / 10) + (${ship.getLength - 1} * 0.2rem)) * ${zoom})`,
+              height: `calc(((20rem + 14vw) / 10) * ${zoom})`,
+              width: `calc((${ship.getLength} * ((20rem + 14vw) / 10) + (${ship.getLength - 1} * 0.2rem)) * ${zoom})`,
               overflow: 'hidden',
               flexShrink: 0,
               cursor: 'pointer',

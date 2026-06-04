@@ -1,6 +1,15 @@
-import styled from "styled-components";
+import styled, { keyframes, css } from "styled-components";
 
-const BoardContainer = styled.div<{ $size?: number; $zoom?: number }>`
+const pulseGlow = keyframes`
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(46, 204, 113, 0.4), 0 0 20px rgba(46, 204, 113, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(46, 204, 113, 0.8), 0 0 40px rgba(46, 204, 113, 0.5);
+  }
+`;
+
+const BoardContainer = styled.div<{ $size?: number; $zoom?: number; $axisRight?: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -8,7 +17,8 @@ const BoardContainer = styled.div<{ $size?: number; $zoom?: number }>`
   .board-viewport-shell {
     position: relative;
     max-width: 100%;
-    padding-left: 1.5rem;
+    padding-left: ${({ $axisRight }) => $axisRight ? '0' : '1.5rem'};
+    padding-right: ${({ $axisRight }) => $axisRight ? '1.5rem' : '0'};
     padding-bottom: 1.5rem;
   }
 
@@ -76,13 +86,14 @@ const BoardContainer = styled.div<{ $size?: number; $zoom?: number }>`
   }
 
   .board-axis-y-viewport {
-    left: 0;
+    left: ${({ $axisRight }) => $axisRight ? 'auto' : '0'};
+    right: ${({ $axisRight }) => $axisRight ? '0' : 'auto'};
     top: 0;
     width: 1.5rem;
   }
 
   .board-axis-x-viewport {
-    left: 1.5rem;
+    left: ${({ $axisRight }) => $axisRight ? '0' : '1.5rem'};
     bottom: 0;
     height: 1.5rem;
     max-width: calc(100vw - 2rem);
@@ -180,19 +191,22 @@ const BoardContainer = styled.div<{ $size?: number; $zoom?: number }>`
   }
 
   .board-axis-y-label {
-    left: 0;
+    left: ${({ $axisRight }) => $axisRight ? 'auto' : '0'};
+    right: ${({ $axisRight }) => $axisRight ? '0' : 'auto'};
     width: 1.5rem;
     height: 1rem;
+    font-size: 0.7rem;
   }
 
   .board-axis-x-label {
     top: 0;
     width: 1.5rem;
     height: 1.5rem;
+    font-size: 0.7rem;
   }
 
   .board-wrapper {
-    opacity: .4;
+    opacity: 1;
     
     position: relative; /* Container for absolute ships */
     display: flex;
@@ -231,8 +245,8 @@ const BoardContainer = styled.div<{ $size?: number; $zoom?: number }>`
       .board-tile {
         position: relative;
         counter-increment: column;
-        width: calc(((14rem + 10vw) / ${({ $size }) => $size || 10}) * ${({ $zoom }) => $zoom || 1});
-        height: calc(((14rem + 10vw) / ${({ $size }) => $size || 10}) * ${({ $zoom }) => $zoom || 1});
+        width: calc(((20rem + 14vw) / ${({ $size }) => $size || 10}) * ${({ $zoom }) => $zoom || 1});
+        height: calc(((20rem + 14vw) / ${({ $size }) => $size || 10}) * ${({ $zoom }) => $zoom || 1});
         margin: .1rem;
         background-color: ${({ theme }) => theme.colors.gridBackground};
         border: 1px solid rgba(255, 255, 255, 0.2);
@@ -349,8 +363,10 @@ const BoardContainer = styled.div<{ $size?: number; $zoom?: number }>`
     }
   }
 
-  .active {
-    opacity: .8;
+  .board-viewport.active {
+    border: 3px solid #2ecc71;
+    z-index: 101;
+    animation: ${pulseGlow} 1.5s ease-in-out infinite;
 
     .board-row {
       .board-tile {
