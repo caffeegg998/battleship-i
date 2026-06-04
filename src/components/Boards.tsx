@@ -4,7 +4,7 @@ import WeaponPanel from "./WeaponPanel";
 import ShipVisual from "./ShipVisual";
 import Game from "../scripts/Game";
 import Battleship from "../scripts/Battleship";
-import { BoardsContainer, BoardContainer, TimerDisplay, ExplosionOverlay, FooterContainer, FooterSection, FooterLabel, FooterRow, ShipsRow, ShipTile, FooterDivider } from "./styled_components/BoardsStyles";
+import { BoardsContainer, BoardContainer, TimerDisplay, ExplosionOverlay, FooterContainer, FooterSection, FooterLabel, FooterRow, ShipsRow, ShipTile, FooterDivider, FooterLeft, FooterRight } from "./styled_components/BoardsStyles";
 import { Socket } from "socket.io-client";
 import PlayerProfile from "./PlayerProfile";
 
@@ -29,6 +29,7 @@ type BoardsProps = {
   opponentSeed?: number;
   autoPlay?: boolean;
   autoPlayDelay?: number;
+  toolbarButtons?: React.ReactNode;
 }
 
 const Boards = ({ 
@@ -52,6 +53,7 @@ const Boards = ({
   opponentSeed = 20,
   autoPlay = false,
   autoPlayDelay = 400,
+  toolbarButtons,
 }: BoardsProps) => {
   const [timer, setTimer] = useState<number>(30);
   const [showExplosion, setShowExplosion] = useState<boolean>(false);
@@ -253,7 +255,7 @@ const Boards = ({
           <img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExNDl2cG91dGMwZzcyOG54bGRueGI0OW5sY2F5a3VwcDB3aHRuaHNldSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/XDRoTw2Fs6rlIW7yQL/giphy.gif" alt="Explosion" />
         </ExplosionOverlay>
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', minHeight: '100vh' }}>
         <BoardsContainer>
           {init && game.getWinner === -1 && (
             <TimerDisplay $isLow={timer <= 10}>
@@ -290,98 +292,105 @@ const Boards = ({
         </BoardsContainer>
 
         <FooterContainer>
-          <FooterSection>
-            <FooterLabel>Your Ships</FooterLabel>
-            <FooterRow>
-              <ShipsRow>
-                {[...shipsPlayer].sort((a, b) => a.getLength - b.getLength).map((ship, i) => {
-                  const zoom = 0.27;
+          <FooterLeft>
+            <FooterSection>
+              <FooterLabel>Your Ships</FooterLabel>
+              <FooterRow>
+                <ShipsRow>
+                  {[...shipsPlayer].sort((a, b) => a.getLength - b.getLength).map((ship, i) => {
+                  const zoom = 0.5;
                   return (
                     <ShipTile
                       key={i}
                       $selected={selectedShipIndex === i}
                       $sunk={ship.isSunk()}
                       onClick={() => handleShipClick(i)}
-                      title={`${ship.shipType} (${ship.getLength})`}
-                    >
-                      <div style={{
-                        position: 'relative',
-                        height: `calc(((14rem + 10vw) / 10) * ${zoom})`,
-                        width: `calc((${ship.getLength} * ((14rem + 10vw) / 10) + (${ship.getLength - 1} * 0.2rem)) * ${zoom})`,
-                        overflow: 'hidden',
-                      }}>
-                        <ShipVisual
-                          length={ship.getLength}
-                          direction={0}
-                          isSunk={ship.isSunk()}
-                          index={ship.shipType === "submarine" ? 1 : 0}
-                          boardSize={10}
-                          zoom={zoom}
-                        />
-                      </div>
-                    </ShipTile>
-                  );
-                })}
-              </ShipsRow>
-              <PlayerProfile name={playerName} avatarUrl={localAvatar} isReady={isLocalReady} align="right" showStatus={!init} />
-            </FooterRow>
-            {selectedShip && (
-              <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, zIndex: 50 }}>
-                <WeaponPanel
-                  ship={selectedShip}
-                  onSelectWeapon={handleSelectWeapon}
-                  selectedWeapon={selectedWeapon}
-                  onClose={handleCloseWeaponPanel}
+                        title={`${ship.shipType} (${ship.getLength})`}
+                      >
+                        <div style={{
+                          position: 'relative',
+                          height: `calc(((20rem + 14vw) / 10) * ${zoom})`,
+                          width: `calc((${ship.getLength} * ((20rem + 14vw) / 10) + (${ship.getLength - 1} * 0.2rem)) * ${zoom})`,
+                          overflow: 'hidden',
+                        }}>
+                          <ShipVisual
+                            length={ship.getLength}
+                            direction={0}
+                            isSunk={ship.isSunk()}
+                            index={ship.shipType === "submarine" ? 1 : 0}
+                            boardSize={10}
+                            zoom={zoom}
+                          />
+                        </div>
+                      </ShipTile>
+                    );
+                  })}
+                </ShipsRow>
+                <PlayerProfile name={playerName} avatarUrl={localAvatar} isReady={isLocalReady} align="right" />
+              </FooterRow>
+              {selectedShip && (
+                <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, zIndex: 50 }}>
+                  <WeaponPanel
+                    ship={selectedShip}
+                    onSelectWeapon={handleSelectWeapon}
+                    selectedWeapon={selectedWeapon}
+                    onClose={handleCloseWeaponPanel}
+                  />
+                </div>
+              )}
+            </FooterSection>
+
+            <FooterDivider />
+
+            <FooterSection>
+              <FooterLabel>Opponent Ships</FooterLabel>
+              <FooterRow>
+                  <PlayerProfile 
+                  name={gameMode === 'multiplayer' ? (hasOpponent ? opponentName : '') : 'Computer'} 
+                  avatarUrl={gameMode === 'multiplayer' && hasOpponent ? opponentAvatar : undefined}
+                  isReady={isOpponentReady} 
+                  align="left" 
+                  isSkeleton={gameMode === 'multiplayer' && !hasOpponent} 
                 />
-              </div>
-            )}
-          </FooterSection>
+                <ShipsRow>
+                  {[...shipsComputer].sort((a, b) => a.getLength - b.getLength).map((ship, i) => {
+                    const zoom = 0.5;
+                    return (
+                      <ShipTile
+                        key={i}
+                        $selected={false}
+                        $sunk={ship.isSunk()}
+                        title={`${ship.shipType} (${ship.getLength})`}
+                        style={{ cursor: 'default' }}
+                      >
+                        <div style={{
+                          position: 'relative',
+                          height: `calc(((20rem + 14vw) / 10) * ${zoom})`,
+                          width: `calc((${ship.getLength} * ((20rem + 14vw) / 10) + (${ship.getLength - 1} * 0.2rem)) * ${zoom})`,
+                          overflow: 'hidden',
+                        }}>
+                          <ShipVisual
+                            length={ship.getLength}
+                            direction={0}
+                            isSunk={ship.isSunk()}
+                            index={ship.shipType === "submarine" ? 1 : 0}
+                            boardSize={10}
+                            zoom={zoom}
+                          />
+                        </div>
+                      </ShipTile>
+                    );
+                  })}
+                </ShipsRow>
+              </FooterRow>
+            </FooterSection>
+          </FooterLeft>
 
           <FooterDivider />
 
-          <FooterSection>
-            <FooterLabel>Opponent Ships</FooterLabel>
-            <FooterRow>
-              <PlayerProfile 
-                name={gameMode === 'multiplayer' ? (hasOpponent ? opponentName : '') : 'Computer'} 
-                avatarUrl={gameMode === 'multiplayer' && hasOpponent ? opponentAvatar : undefined}
-                isReady={isOpponentReady} 
-                align="left" 
-                showStatus={!init && gameMode === 'multiplayer'} 
-                isSkeleton={gameMode === 'multiplayer' && !hasOpponent} 
-              />
-              <ShipsRow>
-                {[...shipsComputer].sort((a, b) => a.getLength - b.getLength).map((ship, i) => {
-                  const zoom = 0.27;
-                  return (
-                    <ShipTile
-                      key={i}
-                      $selected={false}
-                      $sunk={ship.isSunk()}
-                      title={`${ship.shipType} (${ship.getLength})`}
-                      style={{ cursor: 'default' }}
-                    >
-                      <div style={{
-                        position: 'relative',
-                        height: `calc(((14rem + 10vw) / 10) * ${zoom})`,
-                        width: `calc((${ship.getLength} * ((14rem + 10vw) / 10) + (${ship.getLength - 1} * 0.2rem)) * ${zoom})`,
-                        overflow: 'hidden',
-                      }}>
-                        <ShipVisual
-                          length={ship.getLength}
-                          direction={0}
-                          isSunk={ship.isSunk()}
-                          index={ship.shipType === "submarine" ? 1 : 0}
-                          boardSize={10}
-                          zoom={zoom}
-                        />
-                      </div>
-                    </ShipTile>
-                  );
-                })}
-              </ShipsRow>
-            </FooterRow>
-          </FooterSection>
+          <FooterRight>
+            {toolbarButtons}
+          </FooterRight>
         </FooterContainer>
       </div>
     </>

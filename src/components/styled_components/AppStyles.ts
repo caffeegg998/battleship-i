@@ -13,7 +13,6 @@ const Title = styled.div`
   align-items: center;
   border-bottom: 4px solid ${({ theme }) => theme.colors.displayBorder};
   color: ${({ theme }) => theme.colors.displayBorder};
-
 `;
 
 const Header = styled.h1`
@@ -24,7 +23,7 @@ const Header = styled.h1`
 
 const DisplayWrapper = styled.div`
   display: flex;
-  padding: 2rem;
+  padding: 0.5rem;
   justify-content: center;
   align-items: center;
 `;
@@ -46,8 +45,8 @@ const Buttons = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 0.5rem;
-  margin: 0.5rem 0;
+  gap: 0.3rem;
+  margin: 0.25rem 0;
 
   .startGame {
     cursor: pointer;
