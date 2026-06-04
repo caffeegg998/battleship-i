@@ -119,9 +119,10 @@ class PerlinNoise {
   }
 }
 
-export const generateHeightMap = (size: number, seed: number = 20): { heightMap: number[][], textureUrl: string } => {
+export const generateUnifiedMap = (size: number, seed: number = 20): { leftHeightMap: number[][], rightHeightMap: number[][], leftTextureUrl: string, rightTextureUrl: string } => {
   const pn = new PerlinNoise();
   const twister = new MersenneTwister(seed);
+  const cols = size * 2;
 
   // Match reference JS parameters
   const octaves = 4;
@@ -142,20 +143,20 @@ export const generateHeightMap = (size: number, seed: number = 20): { heightMap:
 
   // Number of islands based on board size
   let numIslands: number;
-  if (size <= 10) numIslands = 1;
-  else if (size <= 15) numIslands = 3 + Math.floor(twister.random() * 2); // 3-4
-  else if (size <= 20) numIslands = 4 + Math.floor(twister.random() * 2); // 4-5
-  else if (size <= 25) numIslands = 5 + Math.floor(twister.random() * 2); // 5-6
-  else numIslands = 6 + Math.floor(twister.random() * 2); // 6-7
+  if (size <= 10) numIslands = 2;
+  else if (size <= 15) numIslands = 4 + Math.floor(twister.random() * 3); // 4-6
+  else if (size <= 20) numIslands = 6 + Math.floor(twister.random() * 2); // 6-7
+  else if (size <= 25) numIslands = 7 + Math.floor(twister.random() * 3); // 7-9
+  else numIslands = 9 + Math.floor(twister.random() * 3); // 9-11
 
-  // Place islands without overlapping
+  // Place islands across the full unified map
   const islands: { centerRow: number; centerCol: number; radiusRow: number; radiusCol: number }[] = [];
   for (let n = 0; n < numIslands; n++) {
     for (let attempt = 0; attempt < 100; attempt++) {
       const shape = shapes[Math.floor(twister.random() * shapes.length)];
       const w = shape[0], h = shape[1];
       const cr = Math.floor(twister.random() * size);
-      const cc = Math.floor(twister.random() * size);
+      const cc = Math.floor(twister.random() * cols);
       const rr = h / 2, rc = w / 2;
 
       const overlaps = islands.some(other =>
@@ -173,48 +174,44 @@ export const generateHeightMap = (size: number, seed: number = 20): { heightMap:
   // Add large continents anchored to corners (only for 20x20+ maps)
   if (size > 15) {
     let numContinents: number;
-    if (size <= 20) numContinents = 1 + Math.floor(twister.random() * 2); // 1-2
-    else if (size <= 25) numContinents = 2 + Math.floor(twister.random() * 2); // 2-3
-    else numContinents = 2 + Math.floor(twister.random() * 3); // 2-4
-    const cornerIndices = [0, 1, 2, 3];
+    if (size <= 20) numContinents = 2 + Math.floor(twister.random() * 2); // 2-3
+    else if (size <= 25) numContinents = 3 + Math.floor(twister.random() * 2); // 3-4
+    else numContinents = 4 + Math.floor(twister.random() * 3); // 4-6
+    const corners = [
+      [2, 2], [2, cols - 1 - 2],
+      [size - 1 - 2, 2], [size - 1 - 2, cols - 1 - 2]
+    ];
     // Fisher-Yates shuffle
-    for (let i = cornerIndices.length - 1; i > 0; i--) {
+    for (let i = corners.length - 1; i > 0; i--) {
       const j = Math.floor(twister.random() * (i + 1));
-      [cornerIndices[i], cornerIndices[j]] = [cornerIndices[j], cornerIndices[i]];
+      [corners[i], corners[j]] = [corners[j], corners[i]];
     }
     for (let c = 0; c < numContinents; c++) {
-      const ci = cornerIndices[c];
-      let cr: number, cc: number;
-      const inset = 2;
-      switch (ci) {
-        case 0: cr = inset; cc = inset; break;
-        case 1: cr = inset; cc = size - 1 - inset; break;
-        case 2: cr = size - 1 - inset; cc = inset; break;
-        default: cr = size - 1 - inset; cc = size - 1 - inset; break;
-      }
+      const [cr, cc] = corners[c % corners.length];
       const continentR = 8 + Math.floor(twister.random() * 5); // 8-12
       islands.push({ centerRow: cr, centerCol: cc, radiusRow: continentR, radiusCol: continentR });
     }
   }
 
-  const halfSize = size / 2;
+  const halfRows = size / 2;
+  const halfCols = cols / 2;
 
-  // Octave offsets with seedable random (matching reference style)
+  // Octave offsets with seedable random
   const octaveOffsets = Array.from({ length: octaves }, () => ({
     x: (twister.random() * 200000) - 100000,
     y: (twister.random() * 200000) - 100000
   }));
 
-  // Generate height map with centered noise coordinates (like reference)
-  const heightMap: number[][] = Array.from({ length: size }, () => new Array(size).fill(0));
+  // Generate height map over the full unified area
+  const fullHeightMap: number[][] = Array.from({ length: size }, () => new Array(cols).fill(0));
 
   let minNoiseHeight = Number.MAX_VALUE;
   let maxNoiseHeight = -Number.MAX_VALUE;
 
   for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const sampleY = (y - halfSize + 0.5) / noiseScale;
-      const sampleX = (x - halfSize + 0.5) / noiseScale;
+    for (let x = 0; x < cols; x++) {
+      const sampleY = (y - halfRows + 0.5) / noiseScale;
+      const sampleX = (x - halfCols + 0.5) / noiseScale;
 
       let amplitude = 1;
       let frequency = 1;
@@ -228,7 +225,7 @@ export const generateHeightMap = (size: number, seed: number = 20): { heightMap:
       }
       if (noiseHeight > maxNoiseHeight) maxNoiseHeight = noiseHeight;
       if (noiseHeight < minNoiseHeight) minNoiseHeight = noiseHeight;
-      heightMap[y][x] = noiseHeight;
+      fullHeightMap[y][x] = noiseHeight;
     }
   }
 
@@ -252,48 +249,57 @@ export const generateHeightMap = (size: number, seed: number = 20): { heightMap:
     return maxVal;
   };
 
-  // Normalize and apply island mask (matching reference: 1 - delta² gradient falloff)
-  const normalized: number[][] = heightMap.map((row, y) => row.map((val, x) => {
+  // Normalize and apply island mask
+  const fullNormalized: number[][] = fullHeightMap.map((row, y) => row.map((val, x) => {
     const n = (val - minNoiseHeight) / (maxNoiseHeight - minNoiseHeight);
     return Math.max(0, Math.min(1, applyIslandMask(n, y + 0.5, x + 0.5)));
   }));
 
-  // Create High-Res Texture with exact reference biome colors
+  // Split into left and right halves
+  const leftHeightMap = fullNormalized.map(row => row.slice(0, size));
+  const rightHeightMap = fullNormalized.map(row => row.slice(size));
+
+  // Create High-Res Texture for the full unified map
   const resPerTile = 40;
-  const canvasSize = size * resPerTile;
+  const canvasW = cols * resPerTile;
+  const canvasH = size * resPerTile;
   const canvas = document.createElement("canvas");
-  canvas.width = canvasSize;
-  canvas.height = canvasSize;
+  canvas.width = canvasW;
+  canvas.height = canvasH;
   const ctx = canvas.getContext("2d");
-  let textureUrl = "";
+  let leftTextureUrl = "";
+  let rightTextureUrl = "";
 
   if (ctx) {
-    // Draw grid lines first (shows through semi-transparent water, hidden under opaque land)
+    // Draw grid lines
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
     ctx.lineWidth = 1;
-    for (let i = 0; i <= size; i++) {
+    for (let i = 0; i <= cols; i++) {
       const pos = i * resPerTile + 0.5;
       ctx.beginPath();
       ctx.moveTo(pos, 0);
-      ctx.lineTo(pos, canvasSize);
+      ctx.lineTo(pos, canvasH);
       ctx.stroke();
+    }
+    for (let i = 0; i <= size; i++) {
+      const pos = i * resPerTile + 0.5;
       ctx.beginPath();
       ctx.moveTo(0, pos);
-      ctx.lineTo(canvasSize, pos);
+      ctx.lineTo(canvasW, pos);
       ctx.stroke();
     }
 
-    const imgData = ctx.createImageData(canvasSize, canvasSize);
-    for (let py = 0; py < canvasSize; py++) {
-      for (let px = 0; px < canvasSize; px++) {
+    const imgData = ctx.createImageData(canvasW, canvasH);
+    for (let py = 0; py < canvasH; py++) {
+      for (let px = 0; px < canvasW; px++) {
         const gridX = px / resPerTile;
         const gridY = py / resPerTile;
 
         let noiseHeight = 0;
         let amp = 1, freq = 1;
         for (let i = 0; i < octaves; i++) {
-          const sampleX = (gridX - halfSize + 0.5) / noiseScale * freq + octaveOffsets[i].x;
-          const sampleY = (gridY - halfSize + 0.5) / noiseScale * freq + octaveOffsets[i].y;
+          const sampleX = (gridX - halfCols + 0.5) / noiseScale * freq + octaveOffsets[i].x;
+          const sampleY = (gridY - halfRows + 0.5) / noiseScale * freq + octaveOffsets[i].y;
           noiseHeight += (pn.noise(sampleX, sampleY, 0) * 2 - 1) * amp;
           amp *= persistence;
           freq *= lacunarity;
@@ -303,11 +309,9 @@ export const generateHeightMap = (size: number, seed: number = 20): { heightMap:
         n = applyIslandMask(n, gridY, gridX);
         n = Math.max(0, Math.min(1, n));
 
-        const idx = (py * canvasSize + px) * 4;
+        const idx = (py * canvasW + px) * 4;
 
         if (n < 0.3) {
-          // Ocean layers — 4 contour bands with wavy edges
-          // Perturb depth with noise for undulating wave boundaries
           const wave1 = (pn.noise(gridX * 1.2, gridY * 1.2, 0.3) - 0.5) * 0.08;
           const wave2 = (pn.noise(gridX * 0.7, gridY * 0.7, 0.6) - 0.5) * 0.05;
           const perturbedN = n + wave1 + wave2;
@@ -316,58 +320,55 @@ export const generateHeightMap = (size: number, seed: number = 20): { heightMap:
           const wn = Math.floor((pn.noise(gridX * 2.5, gridY * 2.5, 0.9) - 0.5) * 20);
 
           if (perturbedN < 0.10) {
-            // Layer 0 — deepest, widest
             r = 4 + wn; g = 35 + wn; b = 75 + wn;
           } else if (perturbedN < 0.16) {
-            // Layer 1
             r = 20 + wn; g = 65 + wn; b = 125 + wn;
           } else if (perturbedN < 0.22) {
-            // Layer 2
             r = 55 + wn; g = 115 + wn; b = 175 + wn;
           } else if (perturbedN < 0.26) {
-            // Layer 3
             r = 100 + wn; g = 165 + wn; b = 220 + wn;
           } else {
-            // Layer 4 — shallowest (near islands)
             r = 150 + wn; g = 200 + wn; b = 240 + wn;
           }
           imgData.data[idx] = Math.max(0, Math.min(255, Math.floor(r)));
           imgData.data[idx+1] = Math.max(0, Math.min(255, Math.floor(g)));
           imgData.data[idx+2] = Math.max(0, Math.min(255, Math.floor(b)));
-          // Semi-transparent water: deeper = more transparent, shallower = more opaque
           const waterAlpha = 140 + Math.floor((n / 0.3) * 85);
           imgData.data[idx+3] = Math.min(255, waterAlpha);
         } else if (n < 0.35) {
-          imgData.data[idx] = 255;
-          imgData.data[idx+1] = 235;
-          imgData.data[idx+2] = 204;
-          imgData.data[idx+3] = 255;
+          imgData.data[idx] = 255; imgData.data[idx+1] = 235; imgData.data[idx+2] = 204; imgData.data[idx+3] = 255;
         } else if (n < 0.45) {
-          imgData.data[idx] = 0;
-          imgData.data[idx+1] = 185;
-          imgData.data[idx+2] = 0;
-          imgData.data[idx+3] = 255;
+          imgData.data[idx] = 0; imgData.data[idx+1] = 185; imgData.data[idx+2] = 0; imgData.data[idx+3] = 255;
         } else if (n < 0.55) {
-          imgData.data[idx] = 0;
-          imgData.data[idx+1] = 150;
-          imgData.data[idx+2] = 0;
-          imgData.data[idx+3] = 255;
+          imgData.data[idx] = 0; imgData.data[idx+1] = 150; imgData.data[idx+2] = 0; imgData.data[idx+3] = 255;
         } else if (n < 0.85) {
-          imgData.data[idx] = 179;
-          imgData.data[idx+1] = 145;
-          imgData.data[idx+2] = 104;
-          imgData.data[idx+3] = 255;
+          imgData.data[idx] = 179; imgData.data[idx+1] = 145; imgData.data[idx+2] = 104; imgData.data[idx+3] = 255;
         } else {
-          imgData.data[idx] = 255;
-          imgData.data[idx+1] = 255;
-          imgData.data[idx+2] = 255;
-          imgData.data[idx+3] = 255;
+          imgData.data[idx] = 255; imgData.data[idx+1] = 255; imgData.data[idx+2] = 255; imgData.data[idx+3] = 255;
         }
       }
     }
     ctx.putImageData(imgData, 0, 0);
-    textureUrl = canvas.toDataURL("image/png");
+
+    // Extract left and right halves as separate textures
+    const leftCanvas = document.createElement("canvas");
+    leftCanvas.width = size * resPerTile;
+    leftCanvas.height = size * resPerTile;
+    const leftCtx = leftCanvas.getContext("2d");
+    if (leftCtx) {
+      leftCtx.drawImage(canvas, 0, 0, size * resPerTile, size * resPerTile, 0, 0, size * resPerTile, size * resPerTile);
+      leftTextureUrl = leftCanvas.toDataURL("image/png");
+    }
+
+    const rightCanvas = document.createElement("canvas");
+    rightCanvas.width = size * resPerTile;
+    rightCanvas.height = size * resPerTile;
+    const rightCtx = rightCanvas.getContext("2d");
+    if (rightCtx) {
+      rightCtx.drawImage(canvas, size * resPerTile, 0, size * resPerTile, size * resPerTile, 0, 0, size * resPerTile, size * resPerTile);
+      rightTextureUrl = rightCanvas.toDataURL("image/png");
+    }
   }
 
-  return { heightMap: normalized, textureUrl };
+  return { leftHeightMap, rightHeightMap, leftTextureUrl, rightTextureUrl };
 };

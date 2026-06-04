@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Boards from "./components/Boards";
 import Confetti from "./components/Confetti";
 import Game from "./scripts/Game";
-import { generateHeightMap } from "./scripts/Noise";
+import { generateUnifiedMap } from "./scripts/Noise";
 import { Display, DisplayWrapper, Buttons, HeaderWrapper, Title } from "./components/styled_components/AppStyles";
 import { FaWater, FaDiceD6, FaRecycle, FaPlay, FaUndo, FaSignOutAlt, FaRobot } from "react-icons/fa";
 import RetroBtn from "./components/RetroBtn";
@@ -95,15 +95,15 @@ const App = () => {
         setGameMode('multiplayer');
         setMultiplayerStatus('Joined room. Waiting for opponent...');
 
-        // Re-initialize game with correct board size and unique heightmaps
-        const myMapData = generateHeightMap(boardSize, mySeed);
-        const opponentMapData = generateHeightMap(boardSize, opponentSeed);
+        // Re-initialize game with correct board size and unified heightmap
+        const unifiedSeed = (mySeed + opponentSeed) % 1000000;
+        const mapData = generateUnifiedMap(boardSize, unifiedSeed);
         
         const newGame = new Game(
           ships, 
           boardSize, 
-          [myMapData.heightMap, opponentMapData.heightMap],
-          [myMapData.textureUrl, opponentMapData.textureUrl]
+          [mapData.leftHeightMap, mapData.rightHeightMap],
+          [mapData.leftTextureUrl, mapData.rightTextureUrl]
         );
         newGame.getPlayer(0).setName(playerName);
         newGame.getPlayer(0).setAvatar(localAvatar);
@@ -160,8 +160,10 @@ const App = () => {
       });
 
       socket.on('opponent_renewed_islands', ({ playerIndex, newSeed }) => {
-        const mapData = generateHeightMap(boardSize, newSeed);
-        game.getPlayer(1).getBoard.setHeightMap(mapData.heightMap, mapData.textureUrl);
+        const mapData = generateUnifiedMap(boardSize, newSeed);
+        game.getPlayer(0).getBoard.setHeightMap(mapData.leftHeightMap, mapData.leftTextureUrl);
+        game.getPlayer(1).getBoard.setHeightMap(mapData.rightHeightMap, mapData.rightTextureUrl);
+        setMySeed(newSeed);
         setOpponentSeed(newSeed);
         setGame(Object.assign(Object.create(Object.getPrototypeOf(game)), game));
         setReset(true);
@@ -238,29 +240,25 @@ const App = () => {
   }
 
   const regenerateIslands = () => {
-    const s1 = Math.floor(Math.random() * 1000000);
-    const m1 = generateHeightMap(boardSize, s1);
-    const opponentBoard = game.getPlayer(1).getBoard;
-    let opponentMapData = opponentBoard.getHeightMap;
-    let opponentTextureUrl = opponentBoard.getTextureUrl;
+    const seed = Math.floor(Math.random() * 1000000);
+    const mapData = generateUnifiedMap(boardSize, seed);
 
     if (gameMode === 'multiplayer' && socketRef.current && roomId) {
       socketRef.current.emit('renew_islands', { 
         roomId, 
-        newSeed: s1,
+        newSeed: seed,
         playerName,
         avatar: localAvatar
       });
-      opponentMapData = game.getPlayer(1).getBoard.getHeightMap;
-      opponentTextureUrl = game.getPlayer(1).getBoard.getTextureUrl;
     }
 
-    const newGame = new Game(ships, boardSize, [m1.heightMap, opponentMapData], [m1.textureUrl, opponentTextureUrl]);
+    const newGame = new Game(ships, boardSize, [mapData.leftHeightMap, mapData.rightHeightMap], [mapData.leftTextureUrl, mapData.rightTextureUrl]);
     newGame.getPlayer(0).setName(game.getPlayer(0).getName);
     newGame.getPlayer(0).setAvatar(game.getPlayer(0).getAvatar);
     newGame.getPlayer(1).setName(game.getPlayer(1).getName);
     newGame.getPlayer(1).setAvatar(game.getPlayer(1).getAvatar);
-    setMySeed(s1);
+    setMySeed(seed);
+    setOpponentSeed(seed);
     setGame(newGame);
     setReset(true);
     setTimeout(() => setReset(false), 0);
@@ -288,14 +286,14 @@ const App = () => {
   }
 
   const restartGame = async () => {
-    const myMapData = generateHeightMap(boardSize, mySeed);
-    const opponentMapData = generateHeightMap(boardSize, opponentSeed);
+    const unifiedSeed = (mySeed + opponentSeed) % 1000000;
+    const mapData = generateUnifiedMap(boardSize, unifiedSeed);
     
     const newGame = new Game(
         ships, 
         boardSize, 
-        [myMapData.heightMap, opponentMapData.heightMap],
-        [myMapData.textureUrl, opponentMapData.textureUrl]
+        [mapData.leftHeightMap, mapData.rightHeightMap],
+        [mapData.leftTextureUrl, mapData.rightTextureUrl]
     );
     if (gameMode === 'multiplayer' && playerIndex === 1) {
         newGame.next();
@@ -377,17 +375,15 @@ const App = () => {
             <Buttons>
               <RetroBtn label="Single Player (vs Computer)" onClick={() => {
                 setGameMode('singleplayer');
-                const s1 = Math.floor(Math.random() * 1000000);
-                const s2 = Math.floor(Math.random() * 1000000);
-                const m1 = generateHeightMap(boardSize, s1);
-                const m2 = generateHeightMap(boardSize, s2);
+                const seed = Math.floor(Math.random() * 1000000);
+                const mapData = generateUnifiedMap(boardSize, seed);
                 
-                const singleGame = new Game(ships, boardSize, [m1.heightMap, m2.heightMap], [m1.textureUrl, m2.textureUrl]);
+                const singleGame = new Game(ships, boardSize, [mapData.leftHeightMap, mapData.rightHeightMap], [mapData.leftTextureUrl, mapData.rightTextureUrl]);
                 singleGame.getPlayer(0).setName(playerName);
                 singleGame.getPlayer(0).setAvatar(localAvatar);
                 setGame(singleGame);
-                setMySeed(s1);
-                setOpponentSeed(s2);
+                setMySeed(seed);
+                setOpponentSeed(seed);
                 setReset(true);
                 setTimeout(() => setReset(false), 0);
               }} color="teal" size="md" />
