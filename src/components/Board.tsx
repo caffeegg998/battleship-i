@@ -18,21 +18,27 @@ type BoardProps = {
   playerName?: string;
   localAvatar?: string;
   seed?: number;
+  maxBoardPixels?: number;
 };
 
-const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateBoardState, seed }: BoardProps) => {
+const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateBoardState, seed, maxBoardPixels }: BoardProps) => {
   const [active, setActive] = useState<string>("");
   const [marked, setMarked] = useState<Battleship | null>(null);
-  const [hoverCoords, setHoverCoords] = useState<[number, number] | null>(null);
   const [rotationToggle, setRotationToggle] = useState(false);
   const [mapZoom, setMapZoom] = useState<number>(1);
   const zKeyRef = useRef(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const boardWrapperRef = useRef<HTMLDivElement | null>(null);
-  const zoomSpaceRef = useRef<HTMLDivElement | null>(null);
-  const shellRef = useRef<HTMLDivElement | null>(null);
+  const hoverOverlayRef = useRef<HTMLDivElement | null>(null);
+  const previewOverlayRef = useRef<HTMLDivElement | null>(null);
   const minimapRef = useRef<HTMLDivElement | null>(null);
-  const [baseBoardSize, setBaseBoardSize] = useState({ width: 0, height: 0 });
+  const lastHoverCoordsRef = useRef<[number, number] | null>(null);
+  const activeRef = useRef(false);
+  const markedRef = useRef<Battleship | null>(null);
+  const validTileSetRef = useRef<Set<string>>(new Set());
+  const previewCellRefs = useRef<HTMLDivElement[]>([]);
+  const pointerFrameRef = useRef<number | null>(null);
+  const pendingPointerEventRef = useRef<PointerEvent | null>(null);
   const [viewportScroll, setViewportScroll] = useState({ left: 0, top: 0 });
   const [minimapViewport, setMinimapViewport] = useState({
     left: 0,
@@ -50,6 +56,20 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
 
   const coordKey = (x: number, y: number) => `${x},${y}`;
   const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+  const clearHoverPreview = useCallback(() => {
+    pendingPointerEventRef.current = null;
+    if (pointerFrameRef.current !== null) {
+      window.cancelAnimationFrame(pointerFrameRef.current);
+      pointerFrameRef.current = null;
+    }
+    lastHoverCoordsRef.current = null;
+    const hover = hoverOverlayRef.current;
+    if (hover) hover.style.display = 'none';
+    previewCellRefs.current.forEach((cell) => {
+      cell.style.display = 'none';
+    });
+  }, []);
+
   const getBoardMetrics = useCallback(() => {
     const wrapper = boardWrapperRef.current;
     if (!wrapper) return null;
@@ -90,25 +110,17 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
     return new Set(board.getValidTiles.map(([x, y]) => coordKey(x, y)));
   }, [board, game, marked, player, stateSets]);
 
-  const placementPreview = useMemo(() => {
-    if (!marked || !hoverCoords || player !== 0 || game.getInit) {
-      return { cells: [] as [number, number][], isValid: false };
-    }
+  useEffect(() => {
+    markedRef.current = marked;
+  }, [marked]);
 
-    const [hx, hy] = hoverCoords;
-    const offset = Array.from({ length: marked.getLength }, (_, k) => {
-      if (marked.getDirection === 0) return [0, k];
-      if (marked.getDirection === 90) return [k, 0];
-      if (marked.getDirection === 180) return [0, -k];
-      if (marked.getDirection === 270) return [-k, 0];
-      return [0, k];
-    });
+  useEffect(() => {
+    activeRef.current = active === 'active';
+  }, [active]);
 
-    const cells = offset.map(([ox, oy]) => [hx - ox, hy - oy] as [number, number]);
-    const isValid = cells.every(([x, y]) => validTileSet.has(coordKey(x, y)));
-
-    return { cells, isValid };
-  }, [game, hoverCoords, marked, player, rotationToggle, validTileSet]);
+  useEffect(() => {
+    validTileSetRef.current = validTileSet;
+  }, [validTileSet]);
 
   const getTileClasses = (x: number, y: number) => {
     let classes = "board-tile";
@@ -152,6 +164,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
         if (typeof tile !== 'boolean') {
           const ship = board.removeShip([x, y]);
           if (ship) {
+            lastHoverCoordsRef.current = [x, y];
             setMarked(ship);
             if (updateBoardState) updateBoardState();
           }
@@ -160,9 +173,10 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
         try {
           board.placeShip(marked.getLength, [x, y], marked.getDirection, marked.shipType);
           setMarked(null);
+          clearHoverPreview();
           if (updateBoardState) updateBoardState();
-        } catch (err) {
-          console.error("Invalid placement", err);
+        } catch {
+          return;
         }
       }
     }
@@ -197,9 +211,9 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   useEffect(() => {
     if (reset) {
       setMarked(null);
-      setHoverCoords(null);
+      clearHoverPreview();
     }
-  }, [reset]);
+  }, [reset, clearHoverPreview]);
 
   const updateMinimapViewport = useCallback(() => {
     const viewport = viewportRef.current;
@@ -233,25 +247,6 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
       height: (clippedHeight / metrics.scaledMapHeight) * 100,
     });
   }, [getBoardMetrics]);
-
-  useLayoutEffect(() => {
-    const wrapper = boardWrapperRef.current;
-    if (!wrapper) return;
-
-    const updateSize = () => {
-      setBaseBoardSize({
-        width: wrapper.offsetWidth,
-        height: wrapper.offsetHeight,
-      });
-    };
-
-    updateSize();
-    if (typeof ResizeObserver === "undefined") return;
-
-    const observer = new ResizeObserver(updateSize);
-    observer.observe(wrapper);
-    return () => observer.disconnect();
-  }, [reset, size]);
 
   useEffect(() => {
     const schedule = window.requestAnimationFrame || window.setTimeout;
@@ -346,17 +341,19 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   }, [mapZoom]);
 
   // Math for positioning items accurately over the grid
-  const tileBaseSize = `calc(((20rem + 14vw) * ${mapZoom}) / ${size})`;
+  const boardBaseMeasure = maxBoardPixels ? `${maxBoardPixels}px` : "calc(20rem + 14vw)";
   const tileMargin = "0.1rem";
-  const cellSize = `calc(${tileBaseSize} + (${tileMargin} * 2))`;
-  const baseCellSize = `calc((20rem + 14vw) / ${size} + (${tileMargin} * 2))`;
+  const cellSize = `calc((${boardBaseMeasure} / ${size}) * ${mapZoom})`;
+  const tileBaseSize = `calc(${cellSize} - (${tileMargin} * 2))`;
+  const baseCellSize = `calc(${boardBaseMeasure} / ${size})`;
   const paddingLeft = "0rem";
   const baseBoardWidth = `calc(${size} * ${cellSize})`;
-  const XTitleWidth = `calc((${size} + 1) * ${cellSize})`;
-  const XTitleMaxWidth = `calc(40vw - 3.5rem)`;
   const baseBoardHeight = `calc(${size} * ${cellSize})`;
   const viewportWidth = `calc(${size} * ${baseCellSize})`;
   const viewportHeight = `calc(${size} * ${baseCellSize})`;
+  const boardContainerStyle = {
+    "--tile-size": tileBaseSize,
+  } as React.CSSProperties;
   const boardViewportStyle = {
     width: viewportWidth,
     height: viewportHeight,
@@ -373,6 +370,168 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
     height: baseBoardHeight,
   } as React.CSSProperties;
 
+  const getCellMetrics = useCallback(() => {
+    const wrapper = boardWrapperRef.current;
+    if (!wrapper) return null;
+
+    const rect = wrapper.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+
+    return {
+      width: rect.width / size,
+      height: rect.height / size,
+      rect,
+    };
+  }, [size]);
+
+  const ensurePreviewCells = useCallback((count: number) => {
+    const container = previewOverlayRef.current;
+    if (!container) return [];
+
+    while (previewCellRefs.current.length < count) {
+      const cell = document.createElement('div');
+      cell.style.position = 'absolute';
+      cell.style.pointerEvents = 'none';
+      cell.style.borderRadius = '3px';
+      cell.style.boxSizing = 'border-box';
+      cell.style.willChange = 'transform';
+      cell.style.display = 'none';
+      container.appendChild(cell);
+      previewCellRefs.current.push(cell);
+    }
+
+    return previewCellRefs.current;
+  }, []);
+
+  const updateHoverPreview = useCallback((x: number, y: number) => {
+    const metrics = getCellMetrics();
+    if (!metrics) return;
+
+    lastHoverCoordsRef.current = [x, y];
+
+    const hover = hoverOverlayRef.current;
+    if (hover) {
+      hover.style.display = activeRef.current ? 'block' : 'none';
+      hover.style.width = `${metrics.width}px`;
+      hover.style.height = `${metrics.height}px`;
+      hover.style.transform = `translate3d(${y * metrics.width}px, ${x * metrics.height}px, 0)`;
+    }
+
+    const currentMarked = markedRef.current;
+    if (!currentMarked || player !== 0 || game.getInit) {
+      previewCellRefs.current.forEach((cell) => {
+        cell.style.display = 'none';
+      });
+      return;
+    }
+
+    const offsets = Array.from({ length: currentMarked.getLength }, (_, k) => {
+      if (currentMarked.getDirection === 0) return [0, k];
+      if (currentMarked.getDirection === 90) return [k, 0];
+      if (currentMarked.getDirection === 180) return [0, -k];
+      if (currentMarked.getDirection === 270) return [-k, 0];
+      return [0, k];
+    });
+    const cells = offsets.map(([ox, oy]) => [x - ox, y - oy] as [number, number]);
+    const isValid = cells.every(([r, c]) => validTileSetRef.current.has(`${r},${c}`));
+    const color = isValid ? 'rgba(46, 204, 113, 0.65)' : 'rgba(231, 76, 60, 0.65)';
+    const previewCells = ensurePreviewCells(cells.length);
+
+    previewCells.forEach((cell, index) => {
+      if (index >= cells.length) {
+        cell.style.display = 'none';
+        return;
+      }
+
+      const [r, c] = cells[index];
+      cell.style.display = 'block';
+      cell.style.width = `${metrics.width}px`;
+      cell.style.height = `${metrics.height}px`;
+      cell.style.backgroundColor = color;
+      cell.style.transform = `translate3d(${c * metrics.width}px, ${r * metrics.height}px, 0)`;
+    });
+  }, [ensurePreviewCells, game, getCellMetrics, player]);
+
+  useEffect(() => {
+    const lastHover = lastHoverCoordsRef.current;
+    if (marked && lastHover) {
+      updateHoverPreview(lastHover[0], lastHover[1]);
+    } else if (!marked) {
+      clearHoverPreview();
+    }
+  }, [marked, rotationToggle, mapZoom, updateHoverPreview]);
+
+  const getTileLocationFromTarget = useCallback((target: EventTarget | null): [number, number] | null => {
+    if (!(target instanceof HTMLElement)) return null;
+    const tile = target.closest<HTMLElement>('.board-tile');
+    if (!tile || !boardWrapperRef.current?.contains(tile)) return null;
+
+    const row = Number(tile.dataset.row);
+    const col = Number(tile.dataset.col);
+    if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
+    return [row, col];
+  }, []);
+
+  const getTileLocationFromPointer = useCallback((event: PointerEvent): [number, number] | null => {
+    const metrics = getCellMetrics();
+    if (!metrics) return null;
+
+    const col = Math.floor((event.clientX - metrics.rect.left) / metrics.width);
+    const row = Math.floor((event.clientY - metrics.rect.top) / metrics.height);
+    if (row < 0 || row >= size || col < 0 || col >= size) return null;
+
+    return [row, col];
+  }, [getCellMetrics, size]);
+
+  useEffect(() => {
+    const wrapper = boardWrapperRef.current;
+    if (!wrapper) return;
+
+    const flushPointer = () => {
+      pointerFrameRef.current = null;
+      const event = pendingPointerEventRef.current;
+      pendingPointerEventRef.current = null;
+      if (!event) return;
+      if (!activeRef.current && !markedRef.current) return;
+
+      const loc = getTileLocationFromPointer(event);
+      if (!loc) {
+        clearHoverPreview();
+        return;
+      }
+
+      const lastHover = lastHoverCoordsRef.current;
+      if (lastHover && lastHover[0] === loc[0] && lastHover[1] === loc[1]) return;
+
+      updateHoverPreview(loc[0], loc[1]);
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      pendingPointerEventRef.current = event;
+      if (pointerFrameRef.current === null) {
+        pointerFrameRef.current = window.requestAnimationFrame(flushPointer);
+      }
+    };
+
+    wrapper.addEventListener('pointermove', handlePointerMove, { passive: true });
+    wrapper.addEventListener('pointerleave', clearHoverPreview);
+
+    return () => {
+      wrapper.removeEventListener('pointermove', handlePointerMove);
+      wrapper.removeEventListener('pointerleave', clearHoverPreview);
+      if (pointerFrameRef.current !== null) {
+        window.cancelAnimationFrame(pointerFrameRef.current);
+        pointerFrameRef.current = null;
+      }
+    };
+  }, [clearHoverPreview, getTileLocationFromPointer, updateHoverPreview]);
+
+  const handleBoardClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const loc = getTileLocationFromTarget(event.target);
+    if (!loc) return;
+    chooseAction(loc[0], loc[1]);
+  }, [chooseAction, getTileLocationFromTarget]);
+
   const gridRows = useMemo(() => (
     board.getTiles.map((row, i) => (
       <div key={i} className="board-row">
@@ -384,17 +543,15 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
           return (
             <div
               key={`(${i}, ${j})`}
+              data-row={i}
+              data-col={j}
               className={classes}
-              onClick={() => chooseAction(i, j)}
-              onMouseEnter={() => {
-                if (marked) setHoverCoords([i, j]);
-              }}
             />
           );
         })}
       </div>
     ))
-  ), [board, chooseAction, heightMap, marked, stateSets]);
+  ), [board, heightMap, stateSets]);
   const yAxisLabels = useMemo(() => (
     Array.from({ length: size }, (_, row) => (
       <div
@@ -435,8 +592,8 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
 
   return (
    
-     <BoardContainer $size={size} $zoom={mapZoom} $axisRight={player === 1}>
-      <div ref={shellRef} className="board-viewport-shell" >
+     <BoardContainer $size={size} $zoom={mapZoom} $axisRight={player === 1} style={boardContainerStyle}>
+      <div className="board-viewport-shell" >
         <div className="board-zoom-control" >
           <input
             type="range"
@@ -483,7 +640,12 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
           style={boardViewportStyle}
         >
           <div className="board-zoom-space" style={boardZoomSpaceStyle}>
-       <div ref={boardWrapperRef} className={`board-wrapper ${active}`} onMouseLeave={() => setHoverCoords(null)} style={boardWrapperStyle}>
+       <div
+         ref={boardWrapperRef}
+         className={`board-wrapper ${active}`}
+         onClick={handleBoardClick}
+         style={boardWrapperStyle}
+       >
          
          {/* Render Island Canvas as Full-Board Overlay - Grounded to grid */}
          {textureUrl && (
@@ -539,42 +701,6 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
              </div>
            );
          })}
-
-         {/* Pick-up preview texture */}
-         {marked && hoverCoords && player === 0 && (() => {
-           const dir = marked.getDirection;
-           let visualX = hoverCoords[0];
-           let visualY = hoverCoords[1];
-
-           if (dir === 0) {
-              visualY -= (marked.getLength - 1);
-           } else if (dir === 90) {
-              visualX -= (marked.getLength - 1);
-           } else if (dir === 180) {
-              visualY += (marked.getLength - 1);
-           } else if (dir === 270) {
-              visualX += (marked.getLength - 1);
-           }
-           
-           return (
-             <div style={{ 
-               position: 'absolute', 
-               left: `calc(${paddingLeft} + (${visualY} * ${cellSize}) + ${tileMargin})`, 
-               top: `calc((${visualX} * ${cellSize}) + ${tileMargin})`,
-               opacity: 0.5,
-               pointerEvents: 'none',
-               zIndex: 7
-             }}>
-                <ShipVisual 
-                  length={marked.getLength} 
-                  direction={marked.getDirection} 
-                  index={marked.shipType === "submarine" ? 1 : 0} 
-                  boardSize={size}
-                  zoom={mapZoom}
-                />
-             </div>
-           );
-         })()}
 
           {/* Ship hit/sunk markers above texture */}
           {state.shipHit?.map(([r, c]) => {
@@ -638,37 +764,30 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
             </div>
           ))}
 
-          {/* Hover highlight above everything */}
-          {hoverCoords && active && (
-            <div style={{
+          <div
+            ref={hoverOverlayRef}
+            style={{
+              display: 'none',
               position: 'absolute',
-              left: `calc(${paddingLeft} + (${hoverCoords[1]} * ${cellSize}))`,
-              top: `calc((${hoverCoords[0]} * ${cellSize}))`,
-              width: cellSize,
-              height: cellSize,
+              left: 0,
+              top: 0,
               zIndex: 10,
               border: '2px solid white',
               borderRadius: '3px',
               pointerEvents: 'none',
               boxSizing: 'border-box',
-            }} />
-          )}
-
-          {/* Placement validity overlay. Kept out of the grid so mouse movement does not rebuild every tile. */}
-          {placementPreview.cells.map(([r, c]) => (
-            <div key={`preview-${r}-${c}`} style={{
+              willChange: 'transform',
+            }}
+          />
+          <div
+            ref={previewOverlayRef}
+            style={{
               position: 'absolute',
-              left: `calc(${paddingLeft} + (${c} * ${cellSize}))`,
-              top: `calc((${r} * ${cellSize}))`,
-              width: cellSize,
-              height: cellSize,
+              inset: 0,
               zIndex: 11,
               pointerEvents: 'none',
-              backgroundColor: placementPreview.isValid ? 'rgba(46, 204, 113, 0.65)' : 'rgba(231, 76, 60, 0.65)',
-              borderRadius: '3px',
-              boxSizing: 'border-box',
-            }} />
-          ))}
+            }}
+          />
 
           {/* Grid Rows */}
          {gridRows}
@@ -728,4 +847,21 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   );
 }
 
-export default Board;
+const areBoardPropsEqual = (prev: BoardProps, next: BoardProps) => (
+  prev.player === next.player &&
+  prev.game === next.game &&
+  prev.state === next.state &&
+  prev.loop === next.loop &&
+  prev.turn === next.turn &&
+  prev.init === next.init &&
+  prev.reset === next.reset &&
+  prev.gameMode === next.gameMode &&
+  prev.playerIndex === next.playerIndex &&
+  prev.updateBoardState === next.updateBoardState &&
+  prev.playerName === next.playerName &&
+  prev.localAvatar === next.localAvatar &&
+  prev.seed === next.seed &&
+  prev.maxBoardPixels === next.maxBoardPixels
+);
+
+export default React.memo(Board, areBoardPropsEqual);

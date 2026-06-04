@@ -3,40 +3,55 @@
 exports[`component renders 1`] = `
 <DocumentFragment>
   <div
-    class="sc-bdDsCe dywvpj"
+    class="sc-bdDsCe cMDFjz"
+    style="--tile-size: calc(calc((calc(20rem + 14vw) / 4) * 1) - (0.1rem * 2));"
   >
     <div
       class="board-viewport-shell"
     >
       <div
+        class="board-zoom-control"
+      >
+        <input
+          max="3"
+          min="1"
+          step="0.1"
+          type="range"
+          value="1"
+        />
+        <span>
+          100%
+        </span>
+      </div>
+      <div
         class="board-axis-y-viewport"
-        style="height: calc(4 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem)));"
+        style="height: calc(4 * calc(0.25 * calc(20rem + 14vw))); max-height: calc(4 * calc(0.25 * calc(20rem + 14vw))); overflow: hidden; contain: paint;"
       >
         <div
           class="board-axis-y-layer"
-          style="transform-origin: top left;"
+          style="transform-origin: top left; overflow: hidden; width: 100%; height: 100%; contain: paint;"
         >
           <div
             class="board-axis-label board-axis-y-label"
-            style="top: calc(-0px + ((0 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem))) + (0.5 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem))))); transform: translateY(-50%);"
+            style="top: calc(-0px + ((0 * calc(1 * (0.25 * calc(20rem + 14vw)))) + (0.5 * calc(1 * (0.25 * calc(20rem + 14vw)))))); transform: translateY(-50%);"
           >
             1
           </div>
           <div
             class="board-axis-label board-axis-y-label"
-            style="top: calc(-0px + ((1 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem))) + (0.5 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem))))); transform: translateY(-50%);"
+            style="top: calc(-0px + ((1 * calc(1 * (0.25 * calc(20rem + 14vw)))) + (0.5 * calc(1 * (0.25 * calc(20rem + 14vw)))))); transform: translateY(-50%);"
           >
             2
           </div>
           <div
             class="board-axis-label board-axis-y-label"
-            style="top: calc(-0px + ((2 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem))) + (0.5 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem))))); transform: translateY(-50%);"
+            style="top: calc(-0px + ((2 * calc(1 * (0.25 * calc(20rem + 14vw)))) + (0.5 * calc(1 * (0.25 * calc(20rem + 14vw)))))); transform: translateY(-50%);"
           >
             3
           </div>
           <div
             class="board-axis-label board-axis-y-label"
-            style="top: calc(-0px + ((3 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem))) + (0.5 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem))))); transform: translateY(-50%);"
+            style="top: calc(-0px + ((3 * calc(1 * (0.25 * calc(20rem + 14vw)))) + (0.5 * calc(1 * (0.25 * calc(20rem + 14vw)))))); transform: translateY(-50%);"
           >
             4
           </div>
@@ -44,55 +59,55 @@ exports[`component renders 1`] = `
       </div>
       <div
         class="board-axis-x-viewport"
-        style="width: calc(4 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem)));"
+        style="width: calc(4 * calc(0.25 * calc(20rem + 14vw))); max-width: calc(4 * calc(0.25 * calc(20rem + 14vw))); overflow: hidden; contain: paint;"
       >
         <div
           class="board-axis-x-layer"
-          style="transform-origin: top left;"
+          style="transform-origin: top left; overflow: hidden; width: 100%; height: 100%; contain: paint;"
         >
           <div
             class="board-axis-label board-axis-x-label"
-            style="left: calc((1.5rem - 0px) + ((0 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem))) + (0.5 * (calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem)))))); transform: translateX(-50%);"
+            style="left: calc(-0px + ((0 * calc(1 * (0.25 * calc(20rem + 14vw)))) + (0.5 * (calc(1 * (0.25 * calc(20rem + 14vw))))))); transform: translateX(-50%);"
           >
             A
           </div>
           <div
             class="board-axis-label board-axis-x-label"
-            style="left: calc((1.5rem - 0px) + ((0.5 * (calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem)))) + (1 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem))))); transform: translateX(-50%);"
+            style="left: calc(-0px + ((0.5 * (calc(1 * (0.25 * calc(20rem + 14vw))))) + (1 * calc(1 * (0.25 * calc(20rem + 14vw)))))); transform: translateX(-50%);"
           >
             B
           </div>
           <div
             class="board-axis-label board-axis-x-label"
-            style="left: calc((1.5rem - 0px) + ((0.5 * (calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem)))) + (2 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem))))); transform: translateX(-50%);"
+            style="left: calc(-0px + ((0.5 * (calc(1 * (0.25 * calc(20rem + 14vw))))) + (2 * calc(1 * (0.25 * calc(20rem + 14vw)))))); transform: translateX(-50%);"
           >
             C
           </div>
           <div
             class="board-axis-label board-axis-x-label"
-            style="left: calc((1.5rem - 0px) + ((0.5 * (calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem)))) + (3 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem))))); transform: translateX(-50%);"
+            style="left: calc(-0px + ((0.5 * (calc(1 * (0.25 * calc(20rem + 14vw))))) + (3 * calc(1 * (0.25 * calc(20rem + 14vw)))))); transform: translateX(-50%);"
           >
             D
           </div>
         </div>
       </div>
       <div
-        class="board-viewport "
-        style="width: calc(4 * calc(0.25 * (14rem + 10vw) + (0.2rem))); height: calc(4 * calc(0.25 * (14rem + 10vw) + (0.2rem))); overflow: visible;"
+        class="board-viewport  active"
+        style="width: calc(4 * calc(0.25 * calc(20rem + 14vw))); height: calc(4 * calc(0.25 * calc(20rem + 14vw)));"
       >
         <div
           class="board-zoom-space"
-          style="width: calc(4 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem))); height: calc(4 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem))); position: relative;"
+          style="width: calc(4 * calc(1 * (0.25 * calc(20rem + 14vw)))); height: calc(4 * calc(1 * (0.25 * calc(20rem + 14vw)))); position: relative;"
         >
           <div
             class="board-wrapper active"
-            style="position: relative; width: calc(4 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem))); height: calc(4 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem)));"
+            style="position: relative; width: calc(4 * calc(1 * (0.25 * calc(20rem + 14vw)))); height: calc(4 * calc(1 * (0.25 * calc(20rem + 14vw))));"
           >
             <div
-              style="position: absolute; left: calc(0.1rem + (0 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem)))); top: calc(0.1rem + (0 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem)))); z-index: 6; pointer-events: none;"
+              style="position: absolute; left: calc(0.1rem + (0 * calc(1 * (0.25 * calc(20rem + 14vw))))); top: calc(0.1rem + (0 * calc(1 * (0.25 * calc(20rem + 14vw))))); z-index: 6; pointer-events: none;"
             >
               <div
-                class="sc-dkXsAU gRjUfI"
+                class="sc-dkXsAU bcrmUf"
               >
                 <div
                   class="sc-hKVpXn sc-hHopjF dyVbIv cQYmBa"
@@ -114,10 +129,10 @@ exports[`component renders 1`] = `
               </div>
             </div>
             <div
-              style="position: absolute; left: calc(0.1rem + (2 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem)))); top: calc(0.1rem + (3 * calc(calc(0.25 * (1 * (14rem + 10vw))) + (0.2rem)))); z-index: 6; pointer-events: none;"
+              style="position: absolute; left: calc(0.1rem + (2 * calc(1 * (0.25 * calc(20rem + 14vw))))); top: calc(0.1rem + (3 * calc(1 * (0.25 * calc(20rem + 14vw))))); z-index: 6; pointer-events: none;"
             >
               <div
-                class="sc-dkXsAU lgrVnV"
+                class="sc-dkXsAU jcNuSO"
               >
                 <div
                   class="sc-hKVpXn sc-hHopjF dyVbIv cQYmBa"
@@ -139,19 +154,33 @@ exports[`component renders 1`] = `
               </div>
             </div>
             <div
+              style="display: none; position: absolute; left: 0px; top: 0px; z-index: 10; border: 2px solid white; border-radius: 3px; pointer-events: none; box-sizing: border-box; will-change: transform;"
+            />
+            <div
+              style="position: absolute; inset: 0px; z-index: 11; pointer-events: none;"
+            />
+            <div
               class="board-row"
             >
               <div
                 class="board-tile ship-not-hit"
+                data-col="0"
+                data-row="0"
               />
               <div
                 class="board-tile ship-not-hit"
+                data-col="1"
+                data-row="0"
               />
               <div
                 class="board-tile"
+                data-col="2"
+                data-row="0"
               />
               <div
                 class="board-tile"
+                data-col="3"
+                data-row="0"
               />
             </div>
             <div
@@ -159,15 +188,23 @@ exports[`component renders 1`] = `
             >
               <div
                 class="board-tile"
+                data-col="0"
+                data-row="1"
               />
               <div
                 class="board-tile"
+                data-col="1"
+                data-row="1"
               />
               <div
                 class="board-tile"
+                data-col="2"
+                data-row="1"
               />
               <div
                 class="board-tile"
+                data-col="3"
+                data-row="1"
               />
             </div>
             <div
@@ -175,15 +212,23 @@ exports[`component renders 1`] = `
             >
               <div
                 class="board-tile"
+                data-col="0"
+                data-row="2"
               />
               <div
                 class="board-tile"
+                data-col="1"
+                data-row="2"
               />
               <div
                 class="board-tile ship-not-hit"
+                data-col="2"
+                data-row="2"
               />
               <div
                 class="board-tile"
+                data-col="3"
+                data-row="2"
               />
             </div>
             <div
@@ -191,26 +236,29 @@ exports[`component renders 1`] = `
             >
               <div
                 class="board-tile"
+                data-col="0"
+                data-row="3"
               />
               <div
                 class="board-tile"
+                data-col="1"
+                data-row="3"
               />
               <div
                 class="board-tile ship-not-hit"
+                data-col="2"
+                data-row="3"
               />
               <div
                 class="board-tile"
+                data-col="3"
+                data-row="3"
               />
             </div>
           </div>
         </div>
       </div>
     </div>
-    <h4
-      class="sc-gtcBCx iArYCS"
-    >
-      Player board
-    </h4>
   </div>
 </DocumentFragment>
 `;

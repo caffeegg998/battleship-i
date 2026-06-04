@@ -7,9 +7,11 @@ const BoardsContainer = styled.div`
   align-items: flex-start;
   gap: 2rem;
   position: relative;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
   padding-bottom: 0.5rem;
   flex: 1;
+  min-height: 0;
+  width: 100%;
   overflow: hidden;
 
   @media (max-width: 1035px) {
@@ -64,8 +66,7 @@ const ExplosionOverlay = styled.div`
 `;
 
 const FooterContainer = styled.div`
-  position: sticky;
-  bottom: 0;
+  position: relative;
   z-index: 100;
   display: flex;
   flex-direction: row;

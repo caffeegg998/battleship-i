@@ -486,8 +486,15 @@ const App = () => {
           <h1>Battleship</h1>
         </div>
       {gameMode === 'multiplayer' && (
-        <div style={{textAlign: 'center', margin: '0.5rem', fontWeight: 'bold'}}>
-          Room: {roomId} | Map: {boardSize}x{boardSize} | Status: {multiplayerStatus}
+        <div style={{position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '2.4rem', margin: '0.25rem 0.75rem 0.5rem', fontWeight: 'bold'}}>
+          <div style={{textAlign: 'center', padding: '0 5.5rem'}}>
+            Room: {roomId} | Map: {boardSize}x{boardSize} | Status: {multiplayerStatus}
+          </div>
+          <div style={{position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)'}}>
+            <RetroBtn label="Leave" onClick={leaveRoom} title="Leave Room" color="danger" size="sm">
+              <FaSignOutAlt />
+            </RetroBtn>
+          </div>
         </div>
       )}
       {game.getWinner === 0 && <Confetti />}
@@ -564,11 +571,6 @@ const App = () => {
                   <FaUndo />
                 </RetroBtn>
             }
-            {gameMode === 'multiplayer' && (
-              <RetroBtn label="Leave" onClick={leaveRoom} title="Leave Room" color="danger" size="sm">
-                <FaSignOutAlt />
-              </RetroBtn>
-            )}
           </>}
       />
     </div>

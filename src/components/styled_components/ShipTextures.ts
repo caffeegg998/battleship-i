@@ -10,14 +10,15 @@ const fire1Anime = keyframes`
 
 export const ShipContainer = styled.div<{ $length: number, $direction: number, $isSunk?: boolean, $boardSize?: number, $zoom?: number }>`
   position: absolute;
-  height: calc(((20rem + 14vw) / ${({ $boardSize }) => $boardSize || 10}) * ${({ $zoom }) => $zoom || 1});
-  width: calc(((${({ $length }) => $length} * ((20rem + 14vw) / ${({ $boardSize }) => $boardSize || 10})) + ((${({ $length }) => $length} - 1) * 0.2rem)) * ${({ $zoom }) => $zoom || 1});
+  --ship-tile-size: var(--tile-size, calc(((20rem + 14vw) / ${({ $boardSize }) => $boardSize || 10}) * ${({ $zoom }) => $zoom || 1}));
+  height: var(--ship-tile-size);
+  width: calc(((${({ $length }) => $length} * var(--ship-tile-size)) + ((${({ $length }) => $length} - 1) * 0.2rem)));
   pointer-events: none;
   z-index: 5;
   filter: drop-shadow(2px 1px 2px rgba(0, 0, 0, 1));
   
   transform: rotate(${({ $direction }) => $direction}deg);
-  transform-origin: calc((((20rem + 14vw) / ${({ $boardSize }) => $boardSize || 10}) * ${({ $zoom }) => $zoom || 1}) / 2) calc((((20rem + 14vw) / ${({ $boardSize }) => $boardSize || 10}) * ${({ $zoom }) => $zoom || 1}) / 2);
+  transform-origin: calc(var(--ship-tile-size) / 2) calc(var(--ship-tile-size) / 2);
 
   ${({ $isSunk }) => $isSunk && css`
     opacity: 0.7;
