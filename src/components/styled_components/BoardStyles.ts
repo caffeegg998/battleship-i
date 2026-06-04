@@ -365,6 +365,7 @@ const BoardContainer = styled.div<{ $size?: number; $zoom?: number; $axisRight?:
 
   .board-viewport.active {
     border: 3px solid #2ecc71;
+    z-index: 101;
     animation: ${pulseGlow} 1.5s ease-in-out infinite;
 
     .board-row {

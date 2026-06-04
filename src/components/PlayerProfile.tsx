@@ -1,5 +1,5 @@
 import React from 'react';
-import { ProfileContainer, Avatar, Name, AvatarWrapper, ReadyDot } from './styled_components/PlayerProfileStyles';
+import { ProfileContainer, Avatar, Name, AvatarWrapper, ReadyDot, TimerBadge } from './styled_components/PlayerProfileStyles';
 
 type PlayerProfileProps = {
   name?: string;
@@ -7,9 +7,10 @@ type PlayerProfileProps = {
   isReady?: boolean;
   align: 'left' | 'right';
   isSkeleton?: boolean;
+  timer?: number;
 };
 
-const PlayerProfile = ({ name = '', avatarUrl, isReady = false, align, isSkeleton = false }: PlayerProfileProps) => {
+const PlayerProfile = ({ name = '', avatarUrl, isReady = false, align, isSkeleton = false, timer }: PlayerProfileProps) => {
   const initials = name ? name.substring(0, 2) : '?';
 
   return (
@@ -22,6 +23,9 @@ const PlayerProfile = ({ name = '', avatarUrl, isReady = false, align, isSkeleto
             !isSkeleton && initials
           )}
         </Avatar>
+        {timer !== undefined && timer >= 0 && (
+          <TimerBadge $low={timer <= 5}>{timer}</TimerBadge>
+        )}
         <ReadyDot $ready={isReady} />
       </AvatarWrapper>
       <Name $isSkeleton={isSkeleton}>{!isSkeleton && name}</Name>

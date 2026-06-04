@@ -326,7 +326,7 @@ const Boards = ({
                     );
                   })}
                 </ShipsRow>
-                <PlayerProfile name={playerName} avatarUrl={localAvatar} isReady={isLocalReady} align="right" />
+                <PlayerProfile name={playerName} avatarUrl={localAvatar} isReady={isLocalReady} align="right" timer={init && turn === 0 ? timer : undefined} />
               </FooterRow>
               {selectedShip && (
                 <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, zIndex: 50 }}>
@@ -351,6 +351,7 @@ const Boards = ({
                   isReady={isOpponentReady} 
                   align="left" 
                   isSkeleton={gameMode === 'multiplayer' && !hasOpponent} 
+                  timer={init && turn === 1 ? timer : undefined}
                 />
                 <ShipsRow>
                   {[...shipsComputer].sort((a, b) => a.getLength - b.getLength).map((ship, i) => {

@@ -69,6 +69,25 @@ export const ReadyDot = styled.div<{ $ready: boolean }>`
   border: 2px solid rgba(30, 30, 40, 0.9);
 `;
 
+export const TimerBadge = styled.div<{ $low: boolean }>`
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 1.2rem;
+  height: 1.2rem;
+  padding: 0 3px;
+  border-radius: 6px;
+  background: ${({ $low }) => $low ? '#e74c3c' : 'rgba(0, 0, 0, 0.7)'};
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  font-family: 'Montserrat', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+`;
+
 export const Name = styled.div<{ $isSkeleton?: boolean }>`
   font-size: 0.8rem;
   font-weight: bold;
