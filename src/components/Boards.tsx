@@ -4,7 +4,7 @@ import WeaponPanel from "./WeaponPanel";
 import ShipVisual from "./ShipVisual";
 import Game from "../scripts/Game";
 import Battleship from "../scripts/Battleship";
-import { BoardsContainer, BoardContainer, TimerDisplay, ExplosionOverlay, FooterContainer, FooterSection, FooterLabel, FooterRow, ShipsRow, ShipTile, FooterDivider, FooterLeft, FooterRight } from "./styled_components/BoardsStyles";
+import { BoardsContainer, BoardContainer, TimerDisplay, ExplosionOverlay, FooterContainer, FooterSection, FooterLabel, FooterRow, ShipsRow, ShipTile, FooterDivider, FooterSide, FooterCenter, FooterRight } from "./styled_components/BoardsStyles";
 import { Socket } from "socket.io-client";
 import PlayerProfile from "./PlayerProfile";
 
@@ -335,7 +335,9 @@ const Boards = ({
         </BoardsContainer>
 
         <FooterContainer>
-          <FooterLeft>
+          <FooterSide />
+          <FooterDivider />
+          <FooterCenter>
             <FooterSection>
               <FooterLabel>Your Ships</FooterLabel>
               <FooterRow>
@@ -428,7 +430,7 @@ const Boards = ({
                 </ShipsRow>
               </FooterRow>
             </FooterSection>
-          </FooterLeft>
+          </FooterCenter>
 
           <FooterDivider />
 

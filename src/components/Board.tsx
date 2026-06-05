@@ -26,6 +26,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   const [marked, setMarked] = useState<Battleship | null>(null);
   const [rotationToggle, setRotationToggle] = useState(false);
   const [mapZoom, setMapZoom] = useState<number>(1);
+  const [hoverTile, setHoverTile] = useState<{ x: number, y: number } | null>(null);
   const zKeyRef = useRef(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const boardWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -63,6 +64,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
       pointerFrameRef.current = null;
     }
     lastHoverCoordsRef.current = null;
+    setHoverTile(null);
     const hover = hoverOverlayRef.current;
     if (hover) hover.style.display = 'none';
     previewCellRefs.current.forEach((cell) => {
@@ -164,7 +166,8 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
         if (typeof tile !== 'boolean') {
           const ship = board.removeShip([x, y]);
           if (ship) {
-            lastHoverCoordsRef.current = [x, y];
+    lastHoverCoordsRef.current = [x, y];
+    setHoverTile({ x, y });
             setMarked(ship);
             if (updateBoardState) updateBoardState();
           }
@@ -408,6 +411,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
     if (!metrics) return;
 
     lastHoverCoordsRef.current = [x, y];
+    setHoverTile({ x, y });
 
     const hover = hoverOverlayRef.current;
     if (hover) {
@@ -789,6 +793,36 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
             }}
           />
 
+          {/* Floating ship visual on hover tile */}
+          {marked && player === 0 && !game.getInit && hoverTile && (() => {
+            const dir = marked.getDirection;
+            let vx = hoverTile.x;
+            let vy = hoverTile.y;
+            if (dir === 0) vy -= (marked.getLength - 1);
+            else if (dir === 90) vx -= (marked.getLength - 1);
+            else if (dir === 180) vy += (marked.getLength - 1);
+            else if (dir === 270) vx += (marked.getLength - 1);
+            return (
+              <div style={{
+                position: 'absolute',
+                left: `calc(${paddingLeft} + (${vy} * ${cellSize}) + ${tileMargin})`,
+                top: `calc((${vx} * ${cellSize}) + ${tileMargin})`,
+                zIndex: 12,
+                pointerEvents: 'none',
+                filter: 'drop-shadow(0 0 3px rgba(46,204,113,0.9))',
+              }}>
+                <ShipVisual
+                  length={marked.getLength}
+                  direction={dir}
+                  isSunk={false}
+                  index={marked.shipType === "submarine" ? 1 : 0}
+                  boardSize={size}
+                  zoom={mapZoom}
+                />
+              </div>
+            );
+          })()}
+
           {/* Grid Rows */}
          {gridRows}
       </div>
@@ -843,7 +877,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
         )}
       </div>
     </BoardContainer>
- 
+  
   );
 }
 

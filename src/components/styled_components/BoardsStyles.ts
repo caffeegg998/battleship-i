@@ -71,7 +71,7 @@ const FooterContainer = styled.div`
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 0.5rem;
   padding: 0.25rem 1rem;
   background: rgba(30, 30, 40, 0.9);
@@ -82,22 +82,30 @@ const FooterContainer = styled.div`
   flex-shrink: 0;
 `;
 
-const FooterLeft = styled.div`
+const FooterSide = styled.div`
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-evenly;
-  gap: 1rem;
+  justify-content: center;
   flex: 1;
   min-width: 0;
+`;
+
+const FooterCenter = styled.div`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
 `;
 
 const FooterRight = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 0.2rem;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
 `;
 
 const FooterRowWrapper = styled.div`
@@ -163,4 +171,4 @@ const FooterDivider = styled.div`
   background: rgba(255, 255, 255, 0.1);
 `;
 
-export { BoardContainer, BoardsContainer, TimerDisplay, ExplosionOverlay, FooterContainer, FooterSection, FooterLabel, FooterRow, ShipsRow, ShipTile, FooterDivider, FooterRowWrapper, FooterLeft, FooterRight };
+export { BoardContainer, BoardsContainer, TimerDisplay, ExplosionOverlay, FooterContainer, FooterSection, FooterLabel, FooterRow, ShipsRow, ShipTile, FooterDivider, FooterRowWrapper, FooterSide, FooterCenter, FooterRight };
