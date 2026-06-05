@@ -87,8 +87,9 @@ const FooterSide = styled.div`
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  flex: 1;
-  min-width: 0;
+  /* Thay đổi ở đây: đặt kích thước cố định cho cột trái */
+  width: 150px; 
+  flex-shrink: 0; 
 `;
 
 const FooterCenter = styled.div`
@@ -96,6 +97,9 @@ const FooterCenter = styled.div`
   flex-direction: row;
   align-items: center;
   gap: 1rem;
+  /* Thêm dòng này để phần giữa tự động kéo giãn chiếm hết không gian còn lại */
+  flex: 1; 
+  justify-content: center;
 `;
 
 const FooterRight = styled.div`
@@ -104,8 +108,9 @@ const FooterRight = styled.div`
   align-items: center;
   justify-content: center;
   gap: 0.2rem;
-  flex: 1;
-  min-width: 0;
+  /* Thay đổi ở đây: đặt kích thước cố định bằng hệt cột trái */
+  width: 150px; 
+  flex-shrink: 0; 
 `;
 
 const FooterRowWrapper = styled.div`
@@ -168,7 +173,19 @@ const ShipTile = styled.div<{ $selected?: boolean; $sunk?: boolean }>`
 const FooterDivider = styled.div`
   width: 1px;
   align-self: stretch;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(41, 144, 175, 0.1);
 `;
 
-export { BoardContainer, BoardsContainer, TimerDisplay, ExplosionOverlay, FooterContainer, FooterSection, FooterLabel, FooterRow, ShipsRow, ShipTile, FooterDivider, FooterRowWrapper, FooterSide, FooterCenter, FooterRight };
+const HealthBar = styled.div<{ $pct: number }>`
+  position: absolute;
+  top: 38px;
+  bottom: 0;
+  left: 0;
+  height: 7px;
+  width: ${({ $pct }) => $pct}%;
+  border-radius: 4px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+  background-color: ${({ $pct }) => $pct > 50 ? '#2ecc71' : $pct > 25 ? '#f39c12' : '#e74c3c'};
+`;
+
+export { BoardContainer, BoardsContainer, TimerDisplay, ExplosionOverlay, FooterContainer, FooterSection, FooterLabel, FooterRow, ShipsRow, ShipTile, FooterDivider, FooterRowWrapper, FooterSide, FooterCenter, FooterRight, HealthBar };

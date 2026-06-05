@@ -4,7 +4,7 @@ import WeaponPanel from "./WeaponPanel";
 import ShipVisual from "./ShipVisual";
 import Game from "../scripts/Game";
 import Battleship from "../scripts/Battleship";
-import { BoardsContainer, BoardContainer, TimerDisplay, ExplosionOverlay, FooterContainer, FooterSection, FooterLabel, FooterRow, ShipsRow, ShipTile, FooterDivider, FooterSide, FooterCenter, FooterRight } from "./styled_components/BoardsStyles";
+import { BoardsContainer, BoardContainer, TimerDisplay, ExplosionOverlay, FooterContainer, FooterSection, FooterLabel, FooterRow, ShipsRow, ShipTile, FooterDivider, FooterSide, FooterCenter, FooterRight, HealthBar } from "./styled_components/BoardsStyles";
 import { Socket } from "socket.io-client";
 import PlayerProfile from "./PlayerProfile";
 
@@ -358,30 +358,34 @@ const Boards = ({
                 <ShipsRow>
                   {sortedPlayerShips.map((ship, i) => {
                   const zoom = 0.5;
+                  const pl = ship.placedLength;
+                  const hits = ship.getParts.slice(0, pl).filter(Boolean).length;
+                  const hp = Math.round((1 - hits / pl) * 100);
                   return (
                     <ShipTile
                       key={i}
                       $selected={selectedShipIndex === i}
                       $sunk={ship.isSunk()}
                       onClick={() => handleShipClick(i)}
-                        title={`${ship.shipType} (${ship.getLength})`}
-                      >
-                        <div style={{
-                          position: 'relative',
-                          height: `calc(((20rem + 14vw) / 10) * ${zoom})`,
-                          width: `calc((${ship.getLength} * ((20rem + 14vw) / 10) + (${ship.getLength - 1} * 0.2rem)) * ${zoom})`,
-                          overflow: 'hidden',
-                        }}>
-                          <ShipVisual
-                            length={ship.getLength}
-                            direction={0}
-                            isSunk={ship.isSunk()}
-                            index={ship.shipType === "submarine" ? 1 : 0}
-                            boardSize={10}
-                            zoom={zoom}
-                          />
-                        </div>
-                      </ShipTile>
+                      title={`${ship.shipType} (${ship.getLength}) ${hits}/${pl}`}
+                    >
+                      <div style={{
+                        position: 'relative',
+                        height: `calc(((20rem + 14vw) / 10) * ${zoom})`,
+                        width: `calc((${ship.getLength} * ((20rem + 14vw) / 10) + (${ship.getLength - 1} * 0.2rem)) * ${zoom})`,
+                        overflow: 'hidden',
+                      }}>
+                        <ShipVisual
+                          length={ship.getLength}
+                          direction={0}
+                          isSunk={ship.isSunk()}
+                          index={ship.shipType === "submarine" ? 1 : 0}
+                          boardSize={10}
+                          zoom={zoom}
+                        />
+                      </div>
+                      <HealthBar $pct={hp} />
+                    </ShipTile>
                     );
                   })}
                 </ShipsRow>
@@ -415,12 +419,15 @@ const Boards = ({
                 <ShipsRow>
                   {sortedComputerShips.map((ship, i) => {
                     const zoom = 0.5;
+                    const pl = ship.placedLength;
+                    const hits = ship.getParts.slice(0, pl).filter(Boolean).length;
+                    const hp = Math.round((1 - hits / pl) * 100);
                     return (
                       <ShipTile
                         key={i}
                         $selected={false}
                         $sunk={ship.isSunk()}
-                        title={`${ship.shipType} (${ship.getLength})`}
+                        title={`${ship.shipType} (${ship.getLength}) ${hits}/${pl}`}
                         style={{ cursor: 'default' }}
                       >
                         <div style={{
@@ -438,6 +445,7 @@ const Boards = ({
                             zoom={zoom}
                           />
                         </div>
+                        <HealthBar $pct={hp} />
                       </ShipTile>
                     );
                   })}
