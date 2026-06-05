@@ -123,17 +123,23 @@ class Gameboard {
   private getPlacementOffsets(shipLength: number, direction: number): [number, number][] {
     return Array.from({ length: shipLength }, (_, k) => {
       if (direction === 0) return [0, k]; // Grows left (origin is right)
+      if (direction === 45) return [k, k]; // Grows up-left (origin is bottom-right)
       if (direction === 90) return [k, 0]; // Grows up (origin is bottom)
+      if (direction === 135) return [k, -k]; // Grows up-right (origin is bottom-left)
       if (direction === 180) return [0, -k]; // Grows right (origin is left)
+      if (direction === 225) return [-k, -k]; // Grows down-right (origin is top-left)
       if (direction === 270) return [-k, 0]; // Grows down (origin is top)
+      if (direction === 315) return [-k, k]; // Grows down-left (origin is top-right)
       return [0, k];
     });
   }
 
-  placeShip(shipLength: number, location: [number, number], direction: number | boolean, shipType: string = ""): void {
+  placeShip(shipLength: number, location: [number, number], direction: number | boolean, shipType: string = "", placeLen?: number): void {
     const dir = typeof direction === 'boolean' ? (direction ? 90 : 0) : direction;
     const battleship = new Battleship(shipLength, [location[0], location[1]], dir, shipType);
-    const placementOffset = this.getPlacementOffsets(shipLength, dir);
+    const useLen = placeLen ?? shipLength;
+    battleship.placedLength = useLen;
+    const placementOffset = this.getPlacementOffsets(useLen, dir);
     const contactOffset: number[][] = [
       [-1, -1],
       [-1, 0],
@@ -191,7 +197,7 @@ class Gameboard {
     if(typeof this.tiles[location[0]][location[1]] === "boolean") return;
 
     const ship = this.tiles[location[0]][location[1]] as Battleship;
-    const shipLength = ship.getLength;
+    const shipLength = ship.placedLength;
     const shipOrigin = ship.getOrigin;
     const shipDirection = ship.getDirection;
     const offset = this.getPlacementOffsets(shipLength, shipDirection);

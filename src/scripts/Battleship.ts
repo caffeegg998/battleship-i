@@ -6,10 +6,12 @@ class Battleship {
     public direction: number;
     public shipType: string;
     private weaponCooldowns: Record<string, number>;
+    public placedLength: number;
 
     constructor(shipLength: number, origin: [number, number], direction: number | boolean, shipType: string = "") {
         this.parts = new Array(shipLength).fill(false);
         this.origin = origin;
+        this.placedLength = shipLength;
         if (typeof direction === 'boolean') {
             this.direction = direction ? 90 : 0;
         } else {

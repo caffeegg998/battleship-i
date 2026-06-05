@@ -105,14 +105,13 @@ const App = () => {
           [mapData.leftHeightMap, mapData.rightHeightMap],
           [mapData.leftTextureUrl, mapData.rightTextureUrl]
         );
-        newGame.getPlayer(0).setName(playerName);
-        newGame.getPlayer(0).setAvatar(localAvatar);
+        newGame.getPlayer(index as 0 | 1).setName(playerName);
+        newGame.getPlayer(index as 0 | 1).setAvatar(localAvatar);
 
         if (index === 1) {
-            newGame.next();
-            setTurn(newGame.getTurn);
             setHasOpponent(true); // If we are player 1, the host (player 0) is already here
         }
+        setTurn(0);
         setGame(newGame);
         setReset(true);
         setTimeout(() => setReset(false), 0);
@@ -120,13 +119,14 @@ const App = () => {
 
       socket.on('all_players_connected', ({ opponentName, opponentAvatar }) => {
         setHasOpponent(true);
+        const localIdx = (playerIndex ?? 0) as 0 | 1;
         if (opponentName) {
           setOpponentName(opponentName);
-          game.getPlayer(1).setName(opponentName);
+          game.getPlayer((1 - localIdx) as 0 | 1).setName(opponentName);
         }
         if (opponentAvatar) {
           setOpponentAvatar(opponentAvatar);
-          game.getPlayer(1).setAvatar(opponentAvatar);
+          game.getPlayer((1 - localIdx) as 0 | 1).setAvatar(opponentAvatar);
         }
         setMultiplayerStatus('Opponent connected. Place your ships!');
         // Force a re-render
@@ -144,16 +144,17 @@ const App = () => {
       });
 
       socket.on('game_start', ({ opponentShips, opponentName, opponentAvatar }) => {
-        game.setOpponentShips(opponentShips);
+        const localIdx = (playerIndex ?? 0) as 0 | 1;
+        game.setOpponentShips(opponentShips, localIdx);
         if (opponentName) {
           setOpponentName(opponentName);
-          game.getPlayer(1).setName(opponentName);
+          game.getPlayer((1 - localIdx) as 0 | 1).setName(opponentName);
         }
         if (opponentAvatar) {
           setOpponentAvatar(opponentAvatar);
-          game.getPlayer(1).setAvatar(opponentAvatar);
+          game.getPlayer((1 - localIdx) as 0 | 1).setAvatar(opponentAvatar);
         }
-        game.init();
+        game.init(localIdx);
         updateInit();
         updateDisplay();
         setMultiplayerStatus('Game Started!');
@@ -191,22 +192,23 @@ const App = () => {
         socket.off('error');
       };
     }
-  }, [gameMode, game, playerName, localAvatar]);
+  }, [gameMode, game, playerName, localAvatar, playerIndex]);
 
   const updateDisplay = () => {
     if (!game.getInit) {
       setDisplay('Move/Rotate ships');
     } else if (game.getWinner !== -1) {
-      // Locally, player 0 is always the local user.
+      const localIdx = (playerIndex ?? 0) as 0 | 1;
       const winnerName = gameMode === 'multiplayer' 
-        ? (game.getWinner === 0 ? "You" : (opponentName || "Opponent"))
+        ? (game.getWinner === localIdx ? "You" : (opponentName || "Opponent"))
         : game.getPlayer(game.getWinner).getName;
       setDisplay(`${winnerName} won!`);
     } else if (game.getInit) {
-      if (game.getTurn === 0) {
+      const localIdx = (playerIndex ?? 0) as 0 | 1;
+      if (game.getTurn === localIdx) {
         setDisplay('Your turn');
       } else {
-        const nameToShow = gameMode === 'multiplayer' ? opponentName : game.getPlayer(1).getName;
+        const nameToShow = gameMode === 'multiplayer' ? opponentName : game.getPlayer((1 - localIdx) as 0 | 1).getName;
         setDisplay(`${nameToShow}'s turn`);
       }
     }
@@ -223,7 +225,8 @@ const App = () => {
 
   const initGame = () => {
     if (gameMode === 'multiplayer') {
-      const shipsData = game.getPlayer(0).getBoard.getShips.map(s => ({
+      const localPlayerIndex = (playerIndex ?? 0) as 0 | 1;
+      const shipsData = game.getPlayer(localPlayerIndex).getBoard.getShips.map(s => ({
         length: s.getLength,
         origin: s.getOrigin,
         direction: s.getDirection,
@@ -267,7 +270,7 @@ const App = () => {
   };
 
   const randomizeShips = () => {
-    const board = game.getPlayer(0).getBoard;
+    const board = game.getPlayer((playerIndex ?? 0) as 0 | 1).getBoard;
     board.clearShips();
     board.distributeShips(game.getShips);
     // Force a re-render by replacing the game instance
@@ -295,10 +298,6 @@ const App = () => {
         [mapData.leftHeightMap, mapData.rightHeightMap],
         [mapData.leftTextureUrl, mapData.rightTextureUrl]
     );
-    if (gameMode === 'multiplayer' && playerIndex === 1) {
-        newGame.next();
-    }
-
     // Preserve names
     newGame.getPlayer(0).setName(game.getPlayer(0).getName);
     newGame.getPlayer(1).setName(game.getPlayer(1).getName);
@@ -306,7 +305,7 @@ const App = () => {
     setGame(newGame);
     setReset(true);
     setTimeout(() => setReset(false), 0);
-    setTurn(newGame.getTurn);
+    setTurn(0);
     setDisplay("Move/Rotate ships");
     setInit(false);
 

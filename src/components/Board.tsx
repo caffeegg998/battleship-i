@@ -21,7 +21,7 @@ type BoardProps = {
   maxBoardPixels?: number;
 };
 
-const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateBoardState, seed, maxBoardPixels }: BoardProps) => {
+const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerIndex, updateBoardState, seed, maxBoardPixels }: BoardProps) => {
   const [active, setActive] = useState<string>("");
   const [marked, setMarked] = useState<Battleship | null>(null);
   const [rotationToggle, setRotationToggle] = useState(false);
@@ -54,6 +54,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   const size = board.getSize;
   const heightMap = board.getHeightMap;
   const textureUrl = board.getTextureUrl;
+  const isLocalBoard = player === (playerIndex ?? 0);
 
   const coordKey = (x: number, y: number) => `${x},${y}`;
   const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -108,9 +109,9 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   }), [state]);
 
   const validTileSet = useMemo(() => {
-    if (!marked || player !== 0 || game.getInit) return new Set<string>();
+    if (!marked || !isLocalBoard || game.getInit) return new Set<string>();
     return new Set(board.getValidTiles.map(([x, y]) => coordKey(x, y)));
-  }, [board, game, marked, player, stateSets]);
+  }, [board, game, marked, player, playerIndex, stateSets]);
 
   useEffect(() => {
     markedRef.current = marked;
@@ -130,7 +131,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
     // Restore square-based visual feedback
     const key = coordKey(x, y);
 
-    if (player === 0) {
+    if (isLocalBoard) {
       if (stateSets.shipNotHit.has(key)) classes += " ship-not-hit";
     }
 
@@ -155,11 +156,11 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   };
 
   const chooseAction = useCallback((x: number, y: number) => {
-    const isOpponentBoard = player === 1;
+    const isOpponentBoard = !isLocalBoard;
 
-    if (turn === 0 && isOpponentBoard && game.getInit) {
+    if (turn === (playerIndex ?? 0) && isOpponentBoard && game.getInit) {
       loop([x, y]);
-    } else if (player === 0 && !game.getInit) {
+    } else if (isLocalBoard && !game.getInit) {
       const board = game.getPlayer(player).getBoard;
       if (!marked) {
         const tile = board.getTiles[x][y];
@@ -174,7 +175,8 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
         }
       } else {
         try {
-          board.placeShip(marked.getLength, [x, y], marked.getDirection, marked.shipType);
+          const placeLen = marked.getLength === 5 && marked.getDirection % 90 !== 0 ? 4 : marked.getLength;
+          board.placeShip(marked.getLength, [x, y], marked.getDirection, marked.shipType, placeLen);
           setMarked(null);
           clearHoverPreview();
           if (updateBoardState) updateBoardState();
@@ -183,23 +185,23 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
         }
       }
     }
-  }, [game, loop, marked, player, turn, updateBoardState]);
+  }, [game, loop, marked, player, playerIndex, turn, updateBoardState]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (player === 0 && !game.getInit && marked) {
+      if (isLocalBoard && !game.getInit && marked) {
         if (e.key.toLowerCase() === 'q') {
-          marked.setDirection(marked.getDirection - 90);
+          marked.setDirection(marked.getDirection - 45);
           setRotationToggle(prev => !prev);
         } else if (e.key.toLowerCase() === 'e') {
-          marked.setDirection(marked.getDirection + 90);
+          marked.setDirection(marked.getDirection + 45);
           setRotationToggle(prev => !prev);
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [game, marked, player]);
+  }, [game, marked, player, playerIndex]);
 
   useEffect(() => {
     if (!game.getInit) {
@@ -422,18 +424,23 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
     }
 
     const currentMarked = markedRef.current;
-    if (!currentMarked || player !== 0 || game.getInit) {
+    if (!currentMarked || !isLocalBoard || game.getInit) {
       previewCellRefs.current.forEach((cell) => {
         cell.style.display = 'none';
       });
       return;
     }
 
-    const offsets = Array.from({ length: currentMarked.getLength }, (_, k) => {
+    const previewLen = currentMarked.getLength === 5 && currentMarked.getDirection % 90 !== 0 ? 4 : currentMarked.getLength;
+    const offsets = Array.from({ length: previewLen }, (_, k) => {
       if (currentMarked.getDirection === 0) return [0, k];
+      if (currentMarked.getDirection === 45) return [k, k];
       if (currentMarked.getDirection === 90) return [k, 0];
+      if (currentMarked.getDirection === 135) return [k, -k];
       if (currentMarked.getDirection === 180) return [0, -k];
+      if (currentMarked.getDirection === 225) return [-k, -k];
       if (currentMarked.getDirection === 270) return [-k, 0];
+      if (currentMarked.getDirection === 315) return [-k, k];
       return [0, k];
     });
     const cells = offsets.map(([ox, oy]) => [x - ox, y - oy] as [number, number]);
@@ -454,7 +461,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
       cell.style.backgroundColor = color;
       cell.style.transform = `translate3d(${c * metrics.width}px, ${r * metrics.height}px, 0)`;
     });
-  }, [ensurePreviewCells, game, getCellMetrics, player]);
+  }, [ensurePreviewCells, game, getCellMetrics, player, playerIndex]);
 
   useEffect(() => {
     const lastHover = lastHoverCoordsRef.current;
@@ -667,24 +674,37 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
          )}
 
          {/* Render ship textures as overlays */}
-         {boardShips.map((ship, idx) => {
-           if (player === 1 && !ship.isSunk()) return null;
+          {boardShips.map((ship, idx) => {
+            if (!isLocalBoard && !ship.isSunk()) return null;
            
            const [x, y] = ship.getOrigin;
            const dir = ship.getDirection;
            
-           let visualX = x;
-           let visualY = y;
-           
-           if (dir === 0) {
-              visualY -= (ship.getLength - 1);
-           } else if (dir === 90) {
-              visualX -= (ship.getLength - 1);
-           } else if (dir === 180) {
-              visualY += (ship.getLength - 1);
-           } else if (dir === 270) {
-              visualX += (ship.getLength - 1);
-           }
+            let visualX = x;
+            let visualY = y;
+            const placeLen = ship.placedLength;
+            
+            if (dir === 0) {
+               visualY -= (placeLen - 1);
+            } else if (dir === 45) {
+               visualX -= (placeLen - 1);
+               visualY -= (placeLen - 1);
+            } else if (dir === 90) {
+               visualX -= (placeLen - 1);
+            } else if (dir === 135) {
+               visualX -= (placeLen - 1);
+               visualY += (placeLen - 1);
+            } else if (dir === 180) {
+               visualY += (placeLen - 1);
+            } else if (dir === 225) {
+               visualX += (placeLen - 1);
+               visualY += (placeLen - 1);
+            } else if (dir === 270) {
+               visualX += (placeLen - 1);
+            } else if (dir === 315) {
+               visualX += (placeLen - 1);
+               visualY -= (placeLen - 1);
+            }
 
            return (
              <div key={idx} style={{ 
@@ -794,14 +814,19 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
           />
 
           {/* Floating ship visual on hover tile */}
-          {marked && player === 0 && !game.getInit && hoverTile && (() => {
+          {marked && isLocalBoard && !game.getInit && hoverTile && (() => {
             const dir = marked.getDirection;
+            const placeLen = marked.getLength === 5 && dir % 90 !== 0 ? 4 : marked.getLength;
             let vx = hoverTile.x;
             let vy = hoverTile.y;
-            if (dir === 0) vy -= (marked.getLength - 1);
-            else if (dir === 90) vx -= (marked.getLength - 1);
-            else if (dir === 180) vy += (marked.getLength - 1);
-            else if (dir === 270) vx += (marked.getLength - 1);
+            if (dir === 0) vy -= (placeLen - 1);
+            else if (dir === 45) { vx -= (placeLen - 1); vy -= (placeLen - 1); }
+            else if (dir === 90) vx -= (placeLen - 1);
+            else if (dir === 135) { vx -= (placeLen - 1); vy += (placeLen - 1); }
+            else if (dir === 180) vy += (placeLen - 1);
+            else if (dir === 225) { vx += (placeLen - 1); vy += (placeLen - 1); }
+            else if (dir === 270) vx += (placeLen - 1);
+            else if (dir === 315) { vx += (placeLen - 1); vy -= (placeLen - 1); }
             return (
               <div style={{
                 position: 'absolute',
@@ -837,16 +862,21 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
           >
             {textureUrl && <img src={textureUrl} alt="" />}
             <div className="board-minimap-grid" />
-            {player === 0 && boardShips.map((ship, i) => {
+            {isLocalBoard && boardShips.map((ship, i) => {
               const [r, c] = ship.getOrigin;
-              const len = ship.getLength;
+              const len = ship.placedLength;
               const dir = ship.getDirection;
               const isSunk = ship.isSunk();
               const pct = (v: number) => `${(v / size) * 100}%`;
               let left: number, top: number, w: number, h: number;
               if (dir === 0) { left = c - len + 1; top = r; w = len; h = 1; }
+              else if (dir === 45) { left = c - len + 1; top = r - len + 1; w = len; h = len; }
               else if (dir === 90) { left = c; top = r - len + 1; w = 1; h = len; }
+              else if (dir === 135) { left = c; top = r - len + 1; w = len; h = len; }
               else if (dir === 180) { left = c; top = r; w = len; h = 1; }
+              else if (dir === 225) { left = c; top = r; w = len; h = len; }
+              else if (dir === 270) { left = c; top = r; w = 1; h = len; }
+              else if (dir === 315) { left = c - len + 1; top = r; w = len; h = len; }
               else { left = c; top = r; w = 1; h = len; }
               return (
                 <div key={`minimap-ship-${i}`} style={{

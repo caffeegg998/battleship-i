@@ -107,10 +107,10 @@ const Boards = ({
     };
 
     if (game.getWinner === -1) {
-      // In multiplayer, you can only attack on your turn (which is turn 0 locally)
-      if (gameMode === 'multiplayer' && game.getTurn !== 0) return;
+      const localIdx = (playerIndex ?? 0) as 0 | 1;
+      if (gameMode === 'multiplayer' && game.getTurn !== localIdx) return;
 
-      const opponentBoard = game.getPlayer(1).getBoard;
+      const opponentBoard = game.getPlayer((1 - localIdx) as 0 | 1).getBoard;
       const longestShipBefore = opponentBoard.getShips.find(s => s.getLength === 5);
       const wasSunkBefore = longestShipBefore ? longestShipBefore.isSunk() : false;
 
@@ -125,7 +125,12 @@ const Boards = ({
         }
 
         game.setWinner = game.isWinner();
-        updateStateComputer();
+        const attackedPlayer = (1 - game.getTurn) as 0 | 1;
+        if (attackedPlayer === 0) {
+          updateStatePlayer();
+        } else {
+          updateStateComputer();
+        }
         updateTurn();
         game.next();
         setTimer(30);
@@ -147,7 +152,7 @@ const Boards = ({
         }
       }
     }
-  }, [autoPlayDelay, game, gameMode, roomId, socket, updateStateComputer, updateStatePlayer, updateTurn]);
+  }, [autoPlayDelay, game, gameMode, playerIndex, roomId, socket, updateStateComputer, updateStatePlayer, updateTurn]);
 
   useEffect(() => {
     let interval: any;
@@ -155,8 +160,9 @@ const Boards = ({
       interval = setInterval(() => {
         setTimer((prev) => {
           if (prev <= 1) {
-            if (game.getTurn === 0) {
-              const opponentBoard = game.getPlayer(1).getBoard;
+            const localIdx = (playerIndex ?? 0) as 0 | 1;
+            if (game.getTurn === localIdx) {
+              const opponentBoard = game.getPlayer((1 - localIdx) as 0 | 1).getBoard;
               const validAttacks = [...opponentBoard.getBoardStates.shipNotHit, ...opponentBoard.getBoardStates.notShot];
               if (validAttacks.length > 0) {
                 const randomLoc = validAttacks[Math.floor(Math.random() * validAttacks.length)];
@@ -170,20 +176,26 @@ const Boards = ({
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [init, game, turn, loop]);
+  }, [init, game, turn, loop, playerIndex]);
 
   useEffect(() => {
     if (gameMode === 'multiplayer' && socket) {
       const handleOpponentAttack = (loc: [number, number]) => {
         game.playerTurn(loc);
         game.setWinner = game.isWinner();
-        updateStatePlayer();
+        const attackedPlayer = (1 - game.getTurn) as 0 | 1;
+        if (attackedPlayer === 0) {
+          updateStatePlayer();
+        } else {
+          updateStateComputer();
+        }
         game.next();
         updateTurn();
         setTimer(30);
 
-        if (autoPlayRef.current && game.getWinner === -1 && game.getTurn === 0) {
-          const loc = game.getPlayer(0).chooseAttack(game.getPlayer(1).getBoard) as [number, number] | undefined;
+        if (autoPlayRef.current && game.getWinner === -1 && game.getTurn === (playerIndex ?? 0)) {
+          const localIdx = (playerIndex ?? 0) as 0 | 1;
+          const loc = game.getPlayer(localIdx).chooseAttack(game.getPlayer((1 - localIdx) as 0 | 1).getBoard) as [number, number] | undefined;
           if (loc) {
             if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
             autoTimerRef.current = setTimeout(() => {
@@ -199,7 +211,7 @@ const Boards = ({
         socket.off('attack', handleOpponentAttack);
       };
     }
-  }, [gameMode, socket, game, playerIndex, updateStatePlayer, updateTurn, loop, autoPlayDelay]);
+  }, [gameMode, socket, game, playerIndex, updateStatePlayer, updateStateComputer, updateTurn, loop, autoPlayDelay]);
 
   useEffect(() => {
     if(reset) {
@@ -314,7 +326,7 @@ const Boards = ({
               reset={reset}
               gameMode={gameMode}
               playerIndex={playerIndex}
-              updateBoardState={updateStatePlayer}
+              updateBoardState={playerIndex === 1 ? undefined : updateStatePlayer}
               seed={mySeed}
               maxBoardPixels={maxBoardPixels}
             />
@@ -328,6 +340,8 @@ const Boards = ({
               turn={turn}
               init={init}
               reset={reset}
+              playerIndex={playerIndex}
+              updateBoardState={playerIndex === 1 ? updateStateComputer : undefined}
               seed={opponentSeed}
               maxBoardPixels={maxBoardPixels}
             />

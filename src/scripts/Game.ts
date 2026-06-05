@@ -22,14 +22,15 @@ class Game {
     this.players[1].getBoard.distributeShips(this.shipSizes);
   }
 
-  init(): void {
-    if(this.players[0].getBoard.getShips.length === this.shipSizes.length && !this.initialized) {
+  init(playerIndex: number = 0): void {
+    if(this.players[playerIndex].getBoard.getShips.length === this.shipSizes.length && !this.initialized) {
       this.initialized = true;
     }
   }
 
-  setOpponentShips(ships: {length: number, origin: [number, number], direction: number, shipType: string}[]): void {
-    const board = this.players[1].getBoard;
+  setOpponentShips(ships: {length: number, origin: [number, number], direction: number, shipType: string}[], localPlayerIndex: number = 0): void {
+    const opponentIndex = 1 - localPlayerIndex;
+    const board = this.players[opponentIndex].getBoard;
     // Clear random ships first
     const currentShips = [...board.getShips];
     currentShips.forEach(s => board.removeShip(s.getOrigin));
