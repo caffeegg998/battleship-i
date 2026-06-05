@@ -19,14 +19,17 @@ type BoardProps = {
   localAvatar?: string;
   seed?: number;
   maxBoardPixels?: number;
+  showMissedMarkers?: boolean;
 };
 
-const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerIndex, updateBoardState, seed, maxBoardPixels }: BoardProps) => {
+const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerIndex, updateBoardState, seed, maxBoardPixels, showMissedMarkers = true }: BoardProps) => {
   const [active, setActive] = useState<string>("");
   const [marked, setMarked] = useState<Battleship | null>(null);
   const [rotationToggle, setRotationToggle] = useState(false);
   const [mapZoom, setMapZoom] = useState<number>(1);
   const [hoverTile, setHoverTile] = useState<{ x: number, y: number } | null>(null);
+  const [moveShipIdx, setMoveShipIdx] = useState<number | null>(null);
+  const [movePreviewDeltas, setMovePreviewDeltas] = useState<[number, number][]>([]);
   const zKeyRef = useRef(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const boardWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -105,7 +108,6 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
     shipNotHit: new Set((state.shipNotHit || []).map(([x, y]) => coordKey(x, y))),
     shipHit: new Set((state.shipHit || []).map(([x, y]) => coordKey(x, y))),
     missed: new Set((state.missed || []).map(([x, y]) => coordKey(x, y))),
-    landHit: new Set((state.landHit || []).map(([x, y]) => coordKey(x, y))),
   }), [state]);
 
   const validTileSet = useMemo(() => {
@@ -144,12 +146,8 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
       }
     }
 
-    if (stateSets.missed.has(key)) {
+    if (showMissedMarkers && stateSets.missed.has(key)) {
       classes += " missed";
-    }
-
-    if (stateSets.landHit.has(key)) {
-      classes += " land-hit";
     }
 
     return classes;
@@ -184,8 +182,46 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
           return;
         }
       }
+    } else if (isLocalBoard && game.getInit && turn === (playerIndex ?? 0)) {
+      const board = game.getPlayer(player).getBoard;
+      const forwardDelta: Record<number, [number, number]> = {
+        0: [0, 1], 45: [1, 1], 90: [1, 0], 135: [1, -1],
+        180: [0, -1], 225: [-1, -1], 270: [-1, 0], 315: [-1, 1],
+      };
+      if (moveShipIdx === null) {
+        const tile = board.getTiles[x][y];
+        if (typeof tile !== 'boolean' && !tile.hasMovedThisTurn && !tile.isSunk()) {
+          const idx = boardShips.indexOf(tile);
+          if (idx >= 0) {
+            setMoveShipIdx(idx);
+            const fd = forwardDelta[tile.getDirection] ?? [0, 1];
+            const deltas: [number, number][] = [];
+            if (board.canMoveShipTo(tile, x + fd[0], y + fd[1])) deltas.push(fd);
+            if (board.canMoveShipTo(tile, x - fd[0], y - fd[1])) deltas.push([-fd[0], -fd[1]]);
+            setMovePreviewDeltas(deltas);
+          }
+        } else {
+          setMoveShipIdx(null);
+          setMovePreviewDeltas([]);
+        }
+      } else {
+        const ship = boardShips[moveShipIdx];
+        if (ship) {
+          const [origR, origC] = ship.getOrigin;
+          const dr = x - origR;
+          const dc = y - origC;
+          if (movePreviewDeltas.some(([rd, cd]) => rd === dr && cd === dc)) {
+            if (board.moveShipDelta(moveShipIdx, dr, dc)) {
+              ship.hasMovedThisTurn = true;
+              if (updateBoardState) updateBoardState();
+            }
+          }
+        }
+        setMoveShipIdx(null);
+        setMovePreviewDeltas([]);
+      }
     }
-  }, [game, loop, marked, player, playerIndex, turn, updateBoardState]);
+  }, [game, loop, marked, player, playerIndex, turn, updateBoardState, moveShipIdx, boardShips, movePreviewDeltas]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -197,11 +233,43 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
           marked.setDirection(marked.getDirection + 45);
           setRotationToggle(prev => !prev);
         }
+      } else if (isLocalBoard && game.getInit && moveShipIdx !== null) {
+        const board = game.getPlayer(player).getBoard;
+        const ship = board.getShips[moveShipIdx];
+        if (!ship) return;
+        if (e.key.toLowerCase() === 'q') {
+          if (board.moveAndRotate(moveShipIdx, -45)) {
+            ship.hasMovedThisTurn = true;
+            setMoveShipIdx(null);
+            setMovePreviewDeltas([]);
+            if (updateBoardState) updateBoardState();
+          }
+        } else if (e.key.toLowerCase() === 'e') {
+          if (board.moveAndRotate(moveShipIdx, 45)) {
+            ship.hasMovedThisTurn = true;
+            setMoveShipIdx(null);
+            setMovePreviewDeltas([]);
+            if (updateBoardState) updateBoardState();
+          }
+        } else if (e.key.toLowerCase() === 'a' || e.key.toLowerCase() === 'd') {
+          const fwdMap: Record<number, [number, number]> = {
+            0: [0, 1], 45: [1, 1], 90: [1, 0], 135: [1, -1],
+            180: [0, -1], 225: [-1, -1], 270: [-1, 0], 315: [-1, 1],
+          };
+          const fd = fwdMap[ship.getDirection] ?? [0, -1];
+          const delta: [number, number] = e.key.toLowerCase() === 'a' ? [-fd[0], -fd[1]] : fd;
+          if (board.moveShipDelta(moveShipIdx, delta[0], delta[1])) {
+            ship.hasMovedThisTurn = true;
+            setMoveShipIdx(null);
+            setMovePreviewDeltas([]);
+            if (updateBoardState) updateBoardState();
+          }
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [game, marked, player, playerIndex]);
+  }, [game, marked, player, playerIndex, moveShipIdx, movePreviewDeltas, updateBoardState]);
 
   useEffect(() => {
     if (!game.getInit) {
@@ -217,6 +285,8 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
     if (reset) {
       setMarked(null);
       clearHoverPreview();
+      setMoveShipIdx(null);
+      setMovePreviewDeltas([]);
     }
   }, [reset, clearHoverPreview]);
 
@@ -562,7 +632,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
         })}
       </div>
     ))
-  ), [board, heightMap, stateSets]);
+  ), [board, heightMap, stateSets, showMissedMarkers]);
   const yAxisLabels = useMemo(() => (
     Array.from({ length: size }, (_, row) => (
       <div
@@ -763,30 +833,6 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
             );
           })}
 
-          {/* Land hit markers above texture */}
-          {state.landHit?.map(([r, c]) => (
-            <div key={`land-${r}-${c}`} style={{
-              position: 'absolute',
-              left: `calc(${paddingLeft} + (${c} * ${cellSize}))`,
-              top: `calc((${r} * ${cellSize}))`,
-              width: cellSize,
-              height: cellSize,
-              zIndex: 9,
-              pointerEvents: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <div style={{
-                width: '40%',
-                height: '40%',
-                borderRadius: '50%',
-                backgroundColor: '#8B5E3C',
-                border: '2px solid #FFE0B2',
-                boxSizing: 'border-box',
-              }} />
-            </div>
-          ))}
 
           <div
             ref={hoverOverlayRef}
@@ -846,6 +892,39 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
                 />
               </div>
             );
+          })()}
+
+          {/* Movement arrows */}
+          {isLocalBoard && game.getInit && moveShipIdx !== null && (() => {
+            const ship = boardShips[moveShipIdx];
+            if (!ship || ship.hasMovedThisTurn) return null;
+            const [r, c] = ship.getOrigin;
+            const arrowSymbol: Record<string, string> = {
+              '0,-1': '◀', '-1,-1': '◤', '-1,0': '▲', '-1,1': '◢',
+              '0,1': '▶', '1,1': '◣', '1,0': '▼', '1,-1': '◥',
+            };
+            return movePreviewDeltas.map(([dr, dc]) => {
+              const ar = r + dr;
+              const ac = c + dc;
+              return (
+                <div key={`arrow-${dr},${dc}`} style={{
+                  position: 'absolute',
+                  left: `calc(${paddingLeft} + (${ac} * ${cellSize}) + (${cellSize} / 2) - 0.5rem)`,
+                  top: `calc((${ar} * ${cellSize}) + (${cellSize} / 2) - 0.5rem)`,
+                  width: '1rem',
+                  height: '1rem',
+                  zIndex: 13,
+                  pointerEvents: 'none',
+                  fontSize: '1rem',
+                  lineHeight: '1rem',
+                  textAlign: 'center',
+                  color: '#2ecc71',
+                  filter: 'drop-shadow(0 0 4px rgba(46,204,113,0.9))',
+                }}>
+                  {arrowSymbol[`${dr},${dc}`] ?? '●'}
+                </div>
+              );
+            });
           })()}
 
           {/* Grid Rows */}

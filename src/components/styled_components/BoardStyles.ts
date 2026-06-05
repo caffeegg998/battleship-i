@@ -302,20 +302,6 @@ const BoardContainer = styled.div<{ $size?: number; $zoom?: number; $axisRight?:
           }
         }
 
-        .land-hit {
-          background-color: #8B5E3C;
-
-          &::before {
-            content: '●';
-            position: absolute;
-            font-size: calc(10px * ${({ $zoom }) => $zoom || 1});
-            left: 50%;
-            color: #FFE0B2;
-            top: 50%;
-            transform: translate(-50%, -50%);
-          }
-        }
-
         .marked {
           background-color: ${({ theme }) => theme.colors.marked};
         }

@@ -76,6 +76,15 @@ const Boards = ({
   const [selectedWeapon, setSelectedWeapon] = useState<string | null>(null);
   const boardsAreaRef = useRef<HTMLDivElement | null>(null);
   const [boardsAreaSize, setBoardsAreaSize] = useState({ width: 0, height: 0 });
+  const [showMissedMarkers, setShowMissedMarkers] = useState(true);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'h') setShowMissedMarkers(p => !p);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
 
   const updateStatePlayer = useCallback(() => {
     setStatePlayer(game.getPlayer(0).getBoard.getBoardStates);
@@ -163,7 +172,13 @@ const Boards = ({
             const localIdx = (playerIndex ?? 0) as 0 | 1;
             if (game.getTurn === localIdx) {
               const opponentBoard = game.getPlayer((1 - localIdx) as 0 | 1).getBoard;
-              const validAttacks = [...opponentBoard.getBoardStates.shipNotHit, ...opponentBoard.getBoardStates.notShot];
+              const boardSize = opponentBoard.getSize;
+              const validAttacks: [number, number][] = [];
+              for (let r = 0; r < boardSize; r++) {
+                for (let c = 0; c < boardSize; c++) {
+                  validAttacks.push([r, c]);
+                }
+              }
               if (validAttacks.length > 0) {
                 const randomLoc = validAttacks[Math.floor(Math.random() * validAttacks.length)];
                 loop(randomLoc);
@@ -329,6 +344,7 @@ const Boards = ({
               updateBoardState={playerIndex === 1 ? undefined : updateStatePlayer}
               seed={mySeed}
               maxBoardPixels={maxBoardPixels}
+              showMissedMarkers={showMissedMarkers}
             />
           </BoardContainer>
           <BoardContainer>
@@ -344,12 +360,30 @@ const Boards = ({
               updateBoardState={playerIndex === 1 ? updateStateComputer : undefined}
               seed={opponentSeed}
               maxBoardPixels={maxBoardPixels}
+              showMissedMarkers={showMissedMarkers}
             />
           </BoardContainer>
         </BoardsContainer>
 
         <FooterContainer>
-          <FooterSide />
+          <FooterSide>
+            <button
+              onClick={() => setShowMissedMarkers(p => !p)}
+              style={{
+                background: showMissedMarkers ? '#2ecc71' : '#555',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '4px 10px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontFamily: "'Press Start 2P', monospace",
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {showMissedMarkers ? 'HIDE' : 'SHOW'}
+            </button>
+          </FooterSide>
           <FooterDivider />
           <FooterCenter>
             <FooterSection>

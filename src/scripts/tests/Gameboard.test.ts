@@ -83,10 +83,10 @@ test('checks if attacking empty slot works', () => {
   ]);
 });
 
-test('attacking already marked space returns false', () => {
+test('re-attacking same tile still returns true (ships can move)', () => {
   const board = new Gameboard(3);
   board.receiveAttack([0, 1]);
-  expect(board.receiveAttack([0, 1])).toBe(false);
+  expect(board.receiveAttack([0, 1])).toBe(true);
 });
 
 test('attacking position occupied by ship hits it', () => {
@@ -115,11 +115,11 @@ test('attacking ship not at origin position works', () => {
   ]);
 });
 
-test('attacking already damaged part returns false', () => {
+test('re-attacking already damaged part still returns true', () => {
   const board = new Gameboard(3);
   board.placeShip(2, [1, 1], false);
   board.receiveAttack([1, 0]);
-  expect(board.receiveAttack([1, 0])).toBe(false);
+  expect(board.receiveAttack([1, 0])).toBe(true);
 });
 
 test('correctly returns true if all ships are sunk', () => {

@@ -7,6 +7,7 @@ class Battleship {
     public shipType: string;
     private weaponCooldowns: Record<string, number>;
     public placedLength: number;
+    public hasMovedThisTurn: boolean = false;
 
     constructor(shipLength: number, origin: [number, number], direction: number | boolean, shipType: string = "") {
         this.parts = new Array(shipLength).fill(false);
@@ -84,6 +85,14 @@ class Battleship {
                 this.weaponCooldowns[key]--;
             }
         }
+    }
+
+    get getMoved(): boolean {
+        return this.hasMovedThisTurn;
+    }
+
+    set setMoved(val: boolean) {
+        this.hasMovedThisTurn = val;
     }
 }
 
