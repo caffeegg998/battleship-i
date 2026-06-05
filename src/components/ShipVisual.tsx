@@ -42,7 +42,7 @@ const ShipVisual = ({ length, rotated = false, direction, isSunk = false, index 
         return (
           <>
             <CarrierBase />
-            <InnerShadowWrapper $shadow="drop-shadow(4px 2px 2px rgba(0, 0, 0, 0.8))">
+            <InnerShadowWrapper $shadow="drop-shadow(0px 2px 2px rgba(0, 0, 0, 0.8))">
 
               <CarrierPlatform />
             </InnerShadowWrapper>
@@ -55,22 +55,22 @@ const ShipVisual = ({ length, rotated = false, direction, isSunk = false, index 
         return (
           <>
             <BattleshipBase />
-            <InnerShadowWrapper $shadow="drop-shadow(4px 2px 2px rgba(0, 0, 0, 0.8))">
+            <InnerShadowWrapper $shadow="drop-shadow(0px 2px 2px rgba(0, 0, 0, 0.8))">
               <BattleshipHeliport />
             </InnerShadowWrapper>
             <InnerShadowWrapper>
               <BattleshipFront />
             </InnerShadowWrapper>
-            <InnerShadowWrapper $shadow="drop-shadow(4px 2px 2px rgba(0, 0, 0, 0.8))">
+            <InnerShadowWrapper $shadow="drop-shadow(0px 2px 2px rgba(0, 0, 0, 0.8))">
               <BattleshipCover />
             </InnerShadowWrapper>
-            <InnerShadowWrapper $shadow="drop-shadow(4px 2px 2px rgba(0, 0, 0, 0.8))">
+            <InnerShadowWrapper $shadow="drop-shadow(0px 2px 2px rgba(0, 0, 0, 0.8))">
               <BattleshipHelicopter />
             </InnerShadowWrapper>
-            <InnerShadowWrapper $shadow="drop-shadow(4px 2px 2px rgba(0, 0, 0, 0.8))">
+            <InnerShadowWrapper $shadow="drop-shadow(0px 2px 2px rgba(0, 0, 0, 0.8))">
               <BattleshipAntena />
             </InnerShadowWrapper>
-            <InnerShadowWrapper $shadow="drop-shadow(4px 2px 2px rgba(0, 0, 0, 0.8))">
+            <InnerShadowWrapper $shadow="drop-shadow(0px 2px 2px rgba(0, 0, 0, 0.8))">
               <BattleshipCannon />
             </InnerShadowWrapper>
           </>
@@ -80,7 +80,7 @@ const ShipVisual = ({ length, rotated = false, direction, isSunk = false, index 
           return (
             <>
               <SubmarinePart1 />
-              <InnerShadowWrapper $shadow="drop-shadow(4px 2px 2px rgba(0, 0, 0, 0.8))">
+              <InnerShadowWrapper $shadow="drop-shadow(0px 2px 2px rgba(0, 0, 0, 0.8))">
                 <SubmarinePart2 />
               </InnerShadowWrapper>
             </>
@@ -89,7 +89,7 @@ const ShipVisual = ({ length, rotated = false, direction, isSunk = false, index 
         return (
           <>
             <CruiserPart1 />
-            <InnerShadowWrapper $shadow="drop-shadow(4px 2px 2px rgba(0, 0, 0, 0.8))">
+            <InnerShadowWrapper $shadow="drop-shadow(0px 2px 2px rgba(0, 0, 0, 0.8))">
               <CruiserPart2 />
             </InnerShadowWrapper>
             <InnerShadowWrapper>
@@ -104,7 +104,7 @@ const ShipVisual = ({ length, rotated = false, direction, isSunk = false, index 
         return (
           <>
             <DestroyerPart1 />
-            <InnerShadowWrapper $shadow="drop-shadow(4px 2px 2px rgba(0, 0, 0, 0.8))">
+            <InnerShadowWrapper $shadow="drop-shadow(0px 2px 2px rgba(0, 0, 0, 0.8))">
               <DestroyerPart2 />
             </InnerShadowWrapper>
             <InnerShadowWrapper>
