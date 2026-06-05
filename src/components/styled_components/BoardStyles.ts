@@ -1,13 +1,4 @@
-import styled, { keyframes, css } from "styled-components";
-
-const pulseGlow = keyframes`
-  0%, 100% {
-    box-shadow: 0 0 8px rgba(46, 204, 113, 0.4), 0 0 20px rgba(46, 204, 113, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 15px rgba(46, 204, 113, 0.8), 0 0 40px rgba(46, 204, 113, 0.5);
-  }
-`;
+import styled from "styled-components";
 
 const BoardContainer = styled.div<{ $size?: number; $zoom?: number; $axisRight?: boolean }>`
   display: flex;
@@ -27,7 +18,7 @@ const BoardContainer = styled.div<{ $size?: number; $zoom?: number; $axisRight?:
     left: 50%;
     bottom: 2rem;
     transform: translateX(-50%);
-    z-index: 50;
+    z-index: 160;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -131,7 +122,7 @@ const BoardContainer = styled.div<{ $size?: number; $zoom?: number; $axisRight?:
     bottom: 2.5rem;
     width: 6.5rem;
     aspect-ratio: 1;
-    z-index: 30;
+    z-index: 150;
     overflow: hidden;
     border: 2px solid rgba(255, 255, 255, 0.85);
     border-radius: 4px;
@@ -245,14 +236,13 @@ const BoardContainer = styled.div<{ $size?: number; $zoom?: number; $axisRight?:
       .board-tile {
         position: relative;
         counter-increment: column;
-        width: calc(((20rem + 14vw) / ${({ $size }) => $size || 10}) * ${({ $zoom }) => $zoom || 1});
-        height: calc(((20rem + 14vw) / ${({ $size }) => $size || 10}) * ${({ $zoom }) => $zoom || 1});
+        width: var(--tile-size, calc(((20rem + 14vw) / ${({ $size }) => $size || 10}) * ${({ $zoom }) => $zoom || 1}));
+        height: var(--tile-size, calc(((20rem + 14vw) / ${({ $size }) => $size || 10}) * ${({ $zoom }) => $zoom || 1}));
         margin: .1rem;
         background-color: ${({ theme }) => theme.colors.gridBackground};
         border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 3px;
         font-size: 10px;
-        transition: border 0.2s ease;
       }
 
       .land-tile-logic {
@@ -366,17 +356,6 @@ const BoardContainer = styled.div<{ $size?: number; $zoom?: number; $axisRight?:
   .board-viewport.active {
     border: 3px solid #2ecc71;
     z-index: 101;
-    animation: ${pulseGlow} 1.5s ease-in-out infinite;
-
-    .board-row {
-      .board-tile {
-
-        &:hover {
-          border: 1px solid #ffffff;
-          cursor: pointer;
-        }
-      }
-    }
   }
 `;
 

@@ -119,7 +119,21 @@ class PerlinNoise {
   }
 }
 
-export const generateUnifiedMap = (size: number, seed: number = 20): { leftHeightMap: number[][], rightHeightMap: number[][], leftTextureUrl: string, rightTextureUrl: string } => {
+type UnifiedMap = {
+  leftHeightMap: number[][];
+  rightHeightMap: number[][];
+  leftTextureUrl: string;
+  rightTextureUrl: string;
+};
+
+const mapCache = new Map<string, UnifiedMap>();
+const MAX_MAP_CACHE_ENTRIES = 8;
+
+export const generateUnifiedMap = (size: number, seed: number = 20): UnifiedMap => {
+  const cacheKey = `${size}:${seed}`;
+  const cached = mapCache.get(cacheKey);
+  if (cached) return cached;
+
   const pn = new PerlinNoise();
   const twister = new MersenneTwister(seed);
   const cols = size * 2;
@@ -149,8 +163,23 @@ export const generateUnifiedMap = (size: number, seed: number = 20): { leftHeigh
   else if (size <= 25) numIslands = 7 + Math.floor(twister.random() * 3); // 7-9
   else numIslands = 9 + Math.floor(twister.random() * 3); // 9-11
 
+  type LandMass = {
+    centerRow: number;
+    centerCol: number;
+    radiusRow: number;
+    radiusCol: number;
+    elevationBoost?: number;
+    noiseWeight?: number;
+  };
+
+  type ContinentAnchor = {
+    row: number;
+    col: number;
+    kind: "corner" | "outerEdge" | "middleSeam" | "edgeSeam";
+  };
+
   // Place islands across the full unified map
-  const islands: { centerRow: number; centerCol: number; radiusRow: number; radiusCol: number }[] = [];
+  const islands: LandMass[] = [];
   for (let n = 0; n < numIslands; n++) {
     for (let attempt = 0; attempt < 100; attempt++) {
       const shape = shapes[Math.floor(twister.random() * shapes.length)];
@@ -171,25 +200,119 @@ export const generateUnifiedMap = (size: number, seed: number = 20): { leftHeigh
     }
   }
 
-  // Add large continents anchored to corners (only for 20x20+ maps)
-  if (size > 15) {
+  // Add large continents from 15x30 unified maps upward.
+  // Some anchors sit near the center seam so the two boards can share landmasses.
+  if (size >= 15) {
     let numContinents: number;
-    if (size <= 20) numContinents = 2 + Math.floor(twister.random() * 2); // 2-3
+    if (size <= 15) numContinents = 2 + Math.floor(twister.random() * 2); // 2-3
+    else if (size <= 20) numContinents = 3 + Math.floor(twister.random() * 2); // 3-4
     else if (size <= 25) numContinents = 3 + Math.floor(twister.random() * 2); // 3-4
     else numContinents = 4 + Math.floor(twister.random() * 3); // 4-6
-    const corners = [
-      [2, 2], [2, cols - 1 - 2],
-      [size - 1 - 2, 2], [size - 1 - 2, cols - 1 - 2]
+
+    const cornerAnchors: ContinentAnchor[] = [
+      { row: 2, col: 2, kind: "corner" },
+      { row: 2, col: cols - 1 - 2, kind: "corner" },
+      { row: size - 1 - 2, col: 2, kind: "corner" },
+      { row: size - 1 - 2, col: cols - 1 - 2, kind: "corner" },
     ];
-    // Fisher-Yates shuffle
-    for (let i = corners.length - 1; i > 0; i--) {
-      const j = Math.floor(twister.random() * (i + 1));
-      [corners[i], corners[j]] = [corners[j], corners[i]];
+    const outerEdgeAnchors: ContinentAnchor[] = [
+      { row: Math.floor(size * 0.5), col: 2, kind: "outerEdge" },
+      { row: Math.floor(size * 0.5), col: cols - 1 - 2, kind: "outerEdge" },
+      { row: Math.floor(size * 0.3), col: 2, kind: "outerEdge" },
+      { row: Math.floor(size * 0.7), col: 2, kind: "outerEdge" },
+      { row: Math.floor(size * 0.3), col: cols - 1 - 2, kind: "outerEdge" },
+      { row: Math.floor(size * 0.7), col: cols - 1 - 2, kind: "outerEdge" },
+    ];
+    const middleSeamAnchors: ContinentAnchor[] = [
+      { row: Math.floor(size * 0.5), col: size - 1, kind: "middleSeam" },
+      { row: Math.floor(size * 0.45), col: size, kind: "middleSeam" },
+      { row: Math.floor(size * 0.55), col: size, kind: "middleSeam" },
+    ];
+    const edgeSeamAnchorGroups: ContinentAnchor[][] = [
+      [
+        { row: 2, col: size - 1, kind: "edgeSeam" },
+        { row: 2, col: size, kind: "edgeSeam" },
+      ],
+      [
+        { row: size - 1 - 2, col: size - 1, kind: "edgeSeam" },
+        { row: size - 1 - 2, col: size, kind: "edgeSeam" },
+      ],
+    ];
+    const shuffleAnchors = <T,>(anchors: T[]) => {
+      for (let i = anchors.length - 1; i > 0; i--) {
+        const j = Math.floor(twister.random() * (i + 1));
+        [anchors[i], anchors[j]] = [anchors[j], anchors[i]];
+      }
+      return anchors;
+    };
+    const anchorHalf = (anchor: ContinentAnchor) => anchor.col < size ? "left" : "right";
+    const halfCounts = {
+      left: 0,
+      right: 0,
+    };
+    const optionalSeamAnchors: ContinentAnchor[] = [];
+    if (twister.random() < 0.08) {
+      const anchor = middleSeamAnchors[Math.floor(twister.random() * middleSeamAnchors.length)];
+      optionalSeamAnchors.push(anchor);
+      halfCounts[anchorHalf(anchor)] += 1;
     }
+
+    for (let i = edgeSeamAnchorGroups.length - 1; i > 0; i--) {
+      const j = Math.floor(twister.random() * (i + 1));
+      [edgeSeamAnchorGroups[i], edgeSeamAnchorGroups[j]] = [edgeSeamAnchorGroups[j], edgeSeamAnchorGroups[i]];
+    }
+    for (const group of edgeSeamAnchorGroups) {
+      if (optionalSeamAnchors.length > 0) break;
+      if (twister.random() < 0.14) {
+        const anchor = group[Math.floor(twister.random() * group.length)];
+        optionalSeamAnchors.push(anchor);
+        halfCounts[anchorHalf(anchor)] += 1;
+      }
+    }
+    const anchors = [...optionalSeamAnchors];
+    const maxCorners = numContinents <= 3 ? 1 : 2;
+    const maxPerHalf = Math.ceil(numContinents / 2);
+    let cornerCount = 0;
+    const baseAnchorPool = shuffleAnchors([...cornerAnchors, ...outerEdgeAnchors]);
+    for (const anchor of baseAnchorPool) {
+      if (anchors.length >= numContinents) break;
+      const half = anchorHalf(anchor);
+      if (halfCounts[half] >= maxPerHalf) continue;
+      if (anchor.kind === "corner" && cornerCount >= maxCorners) continue;
+
+      anchors.push(anchor);
+      halfCounts[half] += 1;
+      if (anchor.kind === "corner") cornerCount += 1;
+    }
+    for (const anchor of baseAnchorPool) {
+      if (anchors.length >= numContinents) break;
+      if (anchors.includes(anchor)) continue;
+
+      anchors.push(anchor);
+      if (anchor.kind === "corner") cornerCount += 1;
+    }
+
     for (let c = 0; c < numContinents; c++) {
-      const [cr, cc] = corners[c % corners.length];
-      const continentR = 8 + Math.floor(twister.random() * 5); // 8-12
-      islands.push({ centerRow: cr, centerCol: cc, radiusRow: continentR, radiusCol: continentR });
+      const anchor = anchors[c % anchors.length];
+      const isMiddleSeam = anchor.kind === "middleSeam";
+      const isEdgeSeam = anchor.kind === "edgeSeam";
+      const minRadius = isMiddleSeam || isEdgeSeam
+        ? size <= 15 ? 4 : size <= 20 ? 5 : 6
+        : size <= 15 ? 5 : size <= 20 ? 7 : 8;
+      const radiusRange = isMiddleSeam || isEdgeSeam
+        ? size <= 15 ? 2 : 3
+        : size <= 15 ? 3 : 5;
+      const continentR = minRadius + Math.floor(twister.random() * radiusRange);
+      const radiusRow = isEdgeSeam ? Math.max(3, Math.floor(continentR * 0.7)) : continentR;
+      const isSeam = isMiddleSeam || isEdgeSeam;
+      islands.push({
+        centerRow: anchor.row,
+        centerCol: anchor.col,
+        radiusRow,
+        radiusCol: continentR,
+        elevationBoost: isSeam ? 0.34 : 0.28,
+        noiseWeight: isSeam ? 0.76 : 0.82,
+      });
     }
   }
 
@@ -242,7 +365,8 @@ export const generateUnifiedMap = (size: number, seed: number = 20): { leftHeigh
         const delta = dist / maxDist;
         const gradient = delta * delta;
         const falloff = Math.max(0, 1 - gradient);
-        const islandVal = val * falloff;
+        const boostedVal = (val * (island.noiseWeight ?? 1)) + (island.elevationBoost ?? 0);
+        const islandVal = boostedVal * falloff;
         if (islandVal > maxVal) maxVal = islandVal;
       }
     }
@@ -260,7 +384,7 @@ export const generateUnifiedMap = (size: number, seed: number = 20): { leftHeigh
   const rightHeightMap = fullNormalized.map(row => row.slice(size));
 
   // Create High-Res Texture for the full unified map
-  const resPerTile = 40;
+  const resPerTile = size >= 25 ? 24 : size >= 20 ? 30 : 40;
   const canvasW = cols * resPerTile;
   const canvasH = size * resPerTile;
   const canvas = document.createElement("canvas");
@@ -370,5 +494,14 @@ export const generateUnifiedMap = (size: number, seed: number = 20): { leftHeigh
     }
   }
 
-  return { leftHeightMap, rightHeightMap, leftTextureUrl, rightTextureUrl };
+  const result = { leftHeightMap, rightHeightMap, leftTextureUrl, rightTextureUrl };
+  mapCache.set(cacheKey, result);
+  if (mapCache.size > MAX_MAP_CACHE_ENTRIES) {
+    const firstKey = mapCache.keys().next().value;
+    if (firstKey !== undefined) {
+      mapCache.delete(firstKey);
+    }
+  }
+
+  return result;
 };

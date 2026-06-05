@@ -98,6 +98,7 @@ class Gameboard {
       for(let j = 0; j < this.size; ++j) {
         // Cannot place on Land
         if (this.heightMap[i][j] >= 0.3) continue;
+        if (this.tiles[i][j] !== false) continue;
 
         if(
           offset.every((off) => {
@@ -130,7 +131,6 @@ class Gameboard {
   }
 
   placeShip(shipLength: number, location: [number, number], direction: number | boolean, shipType: string = ""): void {
-    const validPlacement = this.getBoardStates.notShot;
     const dir = typeof direction === 'boolean' ? (direction ? 90 : 0) : direction;
     const battleship = new Battleship(shipLength, [location[0], location[1]], dir, shipType);
     const placementOffset = this.getPlacementOffsets(shipLength, dir);
@@ -149,20 +149,24 @@ class Gameboard {
       const tx = location[0] - placement[0];
       const ty = location[1] - placement[1];
 
-      // Block land placement
-      if (this.heightMap[tx] && this.heightMap[tx][ty] >= 0.3) {
-        throw new Error("Invalid location. Cannot place ships on land.");
-      }
-
       if(
-        !validPlacement.some(
-          (tile) =>
-            tile[0] === tx &&
-            tile[1] === ty
-        )
+        tx < 0 ||
+        tx > this.size - 1 ||
+        ty < 0 ||
+        ty > this.size - 1
       ) {
         throw new Error("Invalid location.");
       }
+
+      // Block land placement
+      if (this.heightMap[tx][ty] >= 0.3) {
+        throw new Error("Invalid location. Cannot place ships on land.");
+      }
+
+      if(this.tiles[tx][ty] !== false) {
+        throw new Error("Invalid location.");
+      }
+
       contactOffset.forEach((contact) => {
         if(
           tx + contact[0] < 0 ||

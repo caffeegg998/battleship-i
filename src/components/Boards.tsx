@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Board from "./Board";
 import WeaponPanel from "./WeaponPanel";
 import ShipVisual from "./ShipVisual";
@@ -74,22 +74,20 @@ const Boards = ({
   );
   const [selectedShipIndex, setSelectedShipIndex] = useState<number | null>(null);
   const [selectedWeapon, setSelectedWeapon] = useState<string | null>(null);
+  const boardsAreaRef = useRef<HTMLDivElement | null>(null);
+  const [boardsAreaSize, setBoardsAreaSize] = useState({ width: 0, height: 0 });
 
-  const updateStatePlayer = () => {
+  const updateStatePlayer = useCallback(() => {
     setStatePlayer(game.getPlayer(0).getBoard.getBoardStates);
     setShipsPlayer([...game.getPlayer(0).getBoard.getShips]);
-  }
+  }, [game]);
 
-  const updateStateComputer = () => {
+  const updateStateComputer = useCallback(() => {
     setStateComputer(game.getPlayer(1).getBoard.getBoardStates);
     setShipsComputer([...game.getPlayer(1).getBoard.getShips]);
-  }
+  }, [game]);
 
-  const updateShipsPlayer = () => {
-    setShipsPlayer([...game.getPlayer(0).getBoard.getShips]);
-  }
-
-  const loop = async (loc: [number, number]) => {
+  const loop = useCallback(async (loc: [number, number]) => {
     function timeout(min: number, max: number) {
       return new Promise((resolve) =>
         setTimeout(resolve, Math.floor(Math.random() * (max - min)) + min),
@@ -149,7 +147,7 @@ const Boards = ({
         }
       }
     }
-  }
+  }, [autoPlayDelay, game, gameMode, roomId, socket, updateStateComputer, updateStatePlayer, updateTurn]);
 
   useEffect(() => {
     let interval: any;
@@ -172,7 +170,7 @@ const Boards = ({
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [init, game, turn]);
+  }, [init, game, turn, loop]);
 
   useEffect(() => {
     if (gameMode === 'multiplayer' && socket) {
@@ -180,7 +178,6 @@ const Boards = ({
         game.playerTurn(loc);
         game.setWinner = game.isWinner();
         updateStatePlayer();
-        updateShipsPlayer();
         game.next();
         updateTurn();
         setTimer(30);
@@ -202,7 +199,7 @@ const Boards = ({
         socket.off('attack', handleOpponentAttack);
       };
     }
-  }, [gameMode, socket, game, playerIndex, updateTurn]);
+  }, [gameMode, socket, game, playerIndex, updateStatePlayer, updateTurn, loop, autoPlayDelay]);
 
   useEffect(() => {
     if(reset) {
@@ -222,11 +219,34 @@ const Boards = ({
   }, []);
 
   useEffect(() => {
+    const element = boardsAreaRef.current;
+    if (!element) return;
+
+    const updateSize = () => {
+      setBoardsAreaSize({
+        width: element.clientWidth,
+        height: element.clientHeight,
+      });
+    };
+
+    updateSize();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(updateSize);
+      observer.observe(element);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
+  }, []);
+
+  useEffect(() => {
     if (autoPlay && init && game.getWinner === -1 && game.getTurn === 0) {
       const loc = game.getPlayer(0).chooseAttack(game.getPlayer(1).getBoard) as [number, number] | undefined;
       if (loc) loop(loc);
     }
-  }, [autoPlay]);
+  }, [autoPlay, init, game, loop]);
 
   const handleShipClick = (index: number) => {
     if (selectedShipIndex === index) {
@@ -246,7 +266,28 @@ const Boards = ({
     setSelectedWeapon(null);
   };
 
-  const selectedShip = selectedShipIndex !== null ? shipsPlayer[selectedShipIndex] : null;
+  const sortedPlayerShips = useMemo(
+    () => [...shipsPlayer].sort((a, b) => a.getLength - b.getLength),
+    [shipsPlayer]
+  );
+  const sortedComputerShips = useMemo(
+    () => [...shipsComputer].sort((a, b) => a.getLength - b.getLength),
+    [shipsComputer]
+  );
+  const maxBoardPixels = useMemo(() => {
+    if (!boardsAreaSize.width || !boardsAreaSize.height) return undefined;
+
+    const stacked = boardsAreaSize.width <= 1035;
+    const widthLimit = stacked
+      ? boardsAreaSize.width - 48
+      : (boardsAreaSize.width - 128) / 2;
+    const heightLimit = stacked
+      ? (boardsAreaSize.height - 56) / 2
+      : boardsAreaSize.height - 40;
+
+    return Math.max(160, Math.floor(Math.min(widthLimit, heightLimit)));
+  }, [boardsAreaSize]);
+  const selectedShip = selectedShipIndex !== null ? sortedPlayerShips[selectedShipIndex] : null;
 
   return (
     <>
@@ -255,8 +296,8 @@ const Boards = ({
           <img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExNDl2cG91dGMwZzcyOG54bGRueGI0OW5sY2F5a3VwcDB3aHRuaHNldSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/XDRoTw2Fs6rlIW7yQL/giphy.gif" alt="Explosion" />
         </ExplosionOverlay>
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', minHeight: '100vh' }}>
-        <BoardsContainer>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', flex: '1 1 auto', minHeight: 0, height: '100%', overflow: 'hidden' }}>
+        <BoardsContainer ref={boardsAreaRef}>
           {init && game.getWinner === -1 && (
             <TimerDisplay $isLow={timer <= 10}>
               {timer}s left
@@ -275,6 +316,7 @@ const Boards = ({
               playerIndex={playerIndex}
               updateBoardState={updateStatePlayer}
               seed={mySeed}
+              maxBoardPixels={maxBoardPixels}
             />
           </BoardContainer>
           <BoardContainer>
@@ -287,6 +329,7 @@ const Boards = ({
               init={init}
               reset={reset}
               seed={opponentSeed}
+              maxBoardPixels={maxBoardPixels}
             />
           </BoardContainer>
         </BoardsContainer>
@@ -297,7 +340,7 @@ const Boards = ({
               <FooterLabel>Your Ships</FooterLabel>
               <FooterRow>
                 <ShipsRow>
-                  {[...shipsPlayer].sort((a, b) => a.getLength - b.getLength).map((ship, i) => {
+                  {sortedPlayerShips.map((ship, i) => {
                   const zoom = 0.5;
                   return (
                     <ShipTile
@@ -354,7 +397,7 @@ const Boards = ({
                   timer={init && turn === 1 ? timer : undefined}
                 />
                 <ShipsRow>
-                  {[...shipsComputer].sort((a, b) => a.getLength - b.getLength).map((ship, i) => {
+                  {sortedComputerShips.map((ship, i) => {
                     const zoom = 0.5;
                     return (
                       <ShipTile

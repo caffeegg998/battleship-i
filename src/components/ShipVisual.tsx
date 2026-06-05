@@ -126,4 +126,4 @@ const ShipVisual = ({ length, rotated = false, direction, isSunk = false, index 
   );
 };
 
-export default ShipVisual;
+export default React.memo(ShipVisual);
