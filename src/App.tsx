@@ -230,7 +230,8 @@ const App = () => {
         length: s.getLength,
         origin: s.getOrigin,
         direction: s.getDirection,
-        shipType: s.shipType
+        shipType: s.shipType,
+        placedLength: s.placedLength,
       }));
       socketRef.current?.emit('ships_ready', { roomId, ships: shipsData });
       setMultiplayerStatus('Waiting for opponent to be ready...');

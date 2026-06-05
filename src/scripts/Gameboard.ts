@@ -69,7 +69,7 @@ class Gameboard {
         else {
           const shipParts = tile.getParts;
           const shipOrigin = tile.getOrigin;
-          const partToHit = Math.abs(shipOrigin[0] - i) + Math.abs(shipOrigin[1] - j);
+          const partToHit = Math.max(Math.abs(shipOrigin[0] - i), Math.abs(shipOrigin[1] - j));
           if(!shipParts[partToHit]) {
             states.shipNotHit.push([i, j]);
           }
@@ -253,7 +253,7 @@ class Gameboard {
     if(state.shipNotHit.find((el) => el[0] === location[0] && el[1] === location[1])) {
       const tile = this.tiles[location[0]][location[1]];
       (tile as Battleship).hit(
-        Math.abs((tile as Battleship).getOrigin[0] - location[0]) + Math.abs((tile as Battleship).getOrigin[1] - location[1])
+        Math.max(Math.abs((tile as Battleship).getOrigin[0] - location[0]), Math.abs((tile as Battleship).getOrigin[1] - location[1]))
       );
       this.markAroundSunk(tile as Battleship);
       return true;
@@ -318,7 +318,7 @@ class Gameboard {
   private markAroundSunk(ship: Battleship): void {
     if(ship.isSunk()) {
       const origin = ship.getOrigin;
-      const partsOffset = this.getPlacementOffsets(ship.getLength, ship.getDirection);
+      const partsOffset = this.getPlacementOffsets(ship.placedLength, ship.getDirection);
       const aroundOffset: number[][] = [
         [-1, -1],
         [-1, 0],

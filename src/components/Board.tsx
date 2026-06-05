@@ -175,7 +175,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
         }
       } else {
         try {
-          const placeLen = marked.getLength === 5 && marked.getDirection % 90 !== 0 ? 4 : marked.getLength;
+          const placeLen = marked.getLength >= 3 && marked.getDirection % 90 !== 0 ? marked.getLength - 1 : marked.getLength;
           board.placeShip(marked.getLength, [x, y], marked.getDirection, marked.shipType, placeLen);
           setMarked(null);
           clearHoverPreview();
@@ -431,7 +431,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
       return;
     }
 
-    const previewLen = currentMarked.getLength === 5 && currentMarked.getDirection % 90 !== 0 ? 4 : currentMarked.getLength;
+    const previewLen = currentMarked.getLength >= 3 && currentMarked.getDirection % 90 !== 0 ? currentMarked.getLength - 1 : currentMarked.getLength;
     const offsets = Array.from({ length: previewLen }, (_, k) => {
       if (currentMarked.getDirection === 0) return [0, k];
       if (currentMarked.getDirection === 45) return [k, k];
@@ -816,7 +816,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
           {/* Floating ship visual on hover tile */}
           {marked && isLocalBoard && !game.getInit && hoverTile && (() => {
             const dir = marked.getDirection;
-            const placeLen = marked.getLength === 5 && dir % 90 !== 0 ? 4 : marked.getLength;
+            const placeLen = marked.getLength >= 3 && dir % 90 !== 0 ? marked.getLength - 1 : marked.getLength;
             let vx = hoverTile.x;
             let vy = hoverTile.y;
             if (dir === 0) vy -= (placeLen - 1);

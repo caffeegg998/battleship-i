@@ -63,7 +63,7 @@ class Battleship {
     }
 
     isSunk(): boolean {
-        return this.parts.every((part) => part);
+        return this.parts.slice(0, this.placedLength).every((part) => part);
     }
 
     getWeaponCooldowns(): Record<string, number> {
