@@ -340,7 +340,8 @@ const BoardContainer = styled.div<{ $size?: number; $zoom?: number; $axisRight?:
   }
 
   .board-viewport.active {
-    border: 3px solid #2ecc71;
+    outline: 3px solid #2ecc71;
+    outline-offset: 0;
     z-index: 101;
   }
 `;

@@ -22,6 +22,40 @@ type BoardProps = {
   showMissedMarkers?: boolean;
 };
 
+const SHIP_DIRECTION_DELTAS: Record<number, [number, number]> = {
+  0: [0, 1],
+  45: [1, 1],
+  90: [1, 0],
+  135: [1, -1],
+  180: [0, -1],
+  225: [-1, -1],
+  270: [-1, 0],
+  315: [-1, 1],
+};
+
+const MOVEMENT_ARROW_ANGLES: Record<string, number> = {
+  "-1,-1": -135,
+  "-1,0": -90,
+  "-1,1": -45,
+  "0,-1": 180,
+  "0,1": 0,
+  "1,-1": 135,
+  "1,0": 90,
+  "1,1": 45,
+};
+
+const getArrowTranslate = ([row, col]: [number, number]) => {
+  const distance = "calc(0.42 * var(--tile-size, 1rem))";
+  return `translate(calc(${col} * ${distance}), calc(${row} * ${distance}))`;
+};
+
+type CellMetrics = {
+  width: number;
+  height: number;
+  viewportLeft: number;
+  viewportTop: number;
+};
+
 const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerIndex, updateBoardState, seed, maxBoardPixels, showMissedMarkers = true }: BoardProps) => {
   const [active, setActive] = useState<string>("");
   const [marked, setMarked] = useState<Battleship | null>(null);
@@ -43,6 +77,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
   const previewCellRefs = useRef<HTMLDivElement[]>([]);
   const pointerFrameRef = useRef<number | null>(null);
   const pendingPointerEventRef = useRef<PointerEvent | null>(null);
+  const cellMetricsRef = useRef<CellMetrics | null>(null);
   const [viewportScroll, setViewportScroll] = useState({ left: 0, top: 0 });
   const [minimapViewport, setMinimapViewport] = useState({
     left: 0,
@@ -153,6 +188,42 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
     return classes;
   };
 
+  const handleMoveDelta = useCallback((deltaRow: number, deltaCol: number) => {
+    if (moveShipIdx === null) return false;
+
+    const moveBoard = game.getPlayer(player).getBoard;
+    const ship = moveBoard.getShips[moveShipIdx];
+    if (!ship || ship.hasMovedThisTurn) return false;
+
+    const didMove = moveBoard.moveShipDelta(moveShipIdx, deltaRow, deltaCol);
+    if (didMove) {
+      ship.hasMovedThisTurn = true;
+      if (updateBoardState) updateBoardState();
+    }
+
+    setMoveShipIdx(null);
+    setMovePreviewDeltas([]);
+    return didMove;
+  }, [game, moveShipIdx, player, updateBoardState]);
+
+  const handleReverseRotate = useCallback((deltaDir: number) => {
+    if (moveShipIdx === null) return false;
+
+    const moveBoard = game.getPlayer(player).getBoard;
+    const ship = moveBoard.getShips[moveShipIdx];
+    if (!ship || ship.hasMovedThisTurn) return false;
+
+    const didMove = moveBoard.reverseAndRotate(moveShipIdx, deltaDir);
+    if (didMove) {
+      ship.hasMovedThisTurn = true;
+      if (updateBoardState) updateBoardState();
+    }
+
+    setMoveShipIdx(null);
+    setMovePreviewDeltas([]);
+    return didMove;
+  }, [game, moveShipIdx, player, updateBoardState]);
+
   const chooseAction = useCallback((x: number, y: number) => {
     const isOpponentBoard = !isLocalBoard;
 
@@ -184,20 +255,17 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
       }
     } else if (isLocalBoard && game.getInit && turn === (playerIndex ?? 0)) {
       const board = game.getPlayer(player).getBoard;
-      const forwardDelta: Record<number, [number, number]> = {
-        0: [0, 1], 45: [1, 1], 90: [1, 0], 135: [1, -1],
-        180: [0, -1], 225: [-1, -1], 270: [-1, 0], 315: [-1, 1],
-      };
       if (moveShipIdx === null) {
         const tile = board.getTiles[x][y];
         if (typeof tile !== 'boolean' && !tile.hasMovedThisTurn && !tile.isSunk()) {
           const idx = boardShips.indexOf(tile);
           if (idx >= 0) {
             setMoveShipIdx(idx);
-            const fd = forwardDelta[tile.getDirection] ?? [0, 1];
+            const [originR, originC] = tile.getOrigin;
+            const fd = SHIP_DIRECTION_DELTAS[tile.getDirection] ?? [0, 1];
             const deltas: [number, number][] = [];
-            if (board.canMoveShipTo(tile, x + fd[0], y + fd[1])) deltas.push(fd);
-            if (board.canMoveShipTo(tile, x - fd[0], y - fd[1])) deltas.push([-fd[0], -fd[1]]);
+            if (board.canMoveShipTo(tile, originR + fd[0], originC + fd[1])) deltas.push(fd);
+            if (board.canMoveShipTo(tile, originR - fd[0], originC - fd[1])) deltas.push([-fd[0], -fd[1]]);
             setMovePreviewDeltas(deltas);
           }
         } else {
@@ -211,17 +279,14 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
           const dr = x - origR;
           const dc = y - origC;
           if (movePreviewDeltas.some(([rd, cd]) => rd === dr && cd === dc)) {
-            if (board.moveShipDelta(moveShipIdx, dr, dc)) {
-              ship.hasMovedThisTurn = true;
-              if (updateBoardState) updateBoardState();
-            }
+            handleMoveDelta(dr, dc);
           }
         }
         setMoveShipIdx(null);
         setMovePreviewDeltas([]);
       }
     }
-  }, [game, loop, marked, player, playerIndex, turn, updateBoardState, moveShipIdx, boardShips, movePreviewDeltas]);
+  }, [game, loop, marked, player, playerIndex, turn, moveShipIdx, boardShips, movePreviewDeltas, handleMoveDelta]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -251,25 +316,20 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
             setMovePreviewDeltas([]);
             if (updateBoardState) updateBoardState();
           }
-        } else if (e.key.toLowerCase() === 'a' || e.key.toLowerCase() === 'd') {
-          const fwdMap: Record<number, [number, number]> = {
-            0: [0, 1], 45: [1, 1], 90: [1, 0], 135: [1, -1],
-            180: [0, -1], 225: [-1, -1], 270: [-1, 0], 315: [-1, 1],
-          };
-          const fd = fwdMap[ship.getDirection] ?? [0, -1];
-          const delta: [number, number] = e.key.toLowerCase() === 'a' ? [-fd[0], -fd[1]] : fd;
-          if (board.moveShipDelta(moveShipIdx, delta[0], delta[1])) {
-            ship.hasMovedThisTurn = true;
-            setMoveShipIdx(null);
-            setMovePreviewDeltas([]);
-            if (updateBoardState) updateBoardState();
-          }
+        } else if (['w', 's'].includes(e.key.toLowerCase())) {
+          const fd = SHIP_DIRECTION_DELTAS[ship.getDirection] ?? [0, 1];
+          const delta: [number, number] = e.key.toLowerCase() === 'w' ? fd : [-fd[0], -fd[1]];
+          handleMoveDelta(delta[0], delta[1]);
+        } else if (e.key.toLowerCase() === 'a') {
+          handleReverseRotate(45);
+        } else if (e.key.toLowerCase() === 'd') {
+          handleReverseRotate(-45);
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [game, marked, player, playerIndex, moveShipIdx, movePreviewDeltas, updateBoardState]);
+  }, [game, marked, player, playerIndex, moveShipIdx, movePreviewDeltas, updateBoardState, handleMoveDelta, handleReverseRotate]);
 
   useEffect(() => {
     if (!game.getInit) {
@@ -445,19 +505,27 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
     height: baseBoardHeight,
   } as React.CSSProperties;
 
-  const getCellMetrics = useCallback(() => {
+  const refreshCellMetrics = useCallback(() => {
     const wrapper = boardWrapperRef.current;
-    if (!wrapper) return null;
+    const viewport = viewportRef.current;
+    if (!wrapper || !viewport) return null;
 
     const rect = wrapper.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return null;
+    const viewportRect = viewport.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0 || viewportRect.width <= 0 || viewportRect.height <= 0) return null;
 
-    return {
+    const metrics = {
       width: rect.width / size,
       height: rect.height / size,
-      rect,
+      viewportLeft: viewportRect.left,
+      viewportTop: viewportRect.top,
     };
+
+    cellMetricsRef.current = metrics;
+    return metrics;
   }, [size]);
+
+  const getCellMetrics = useCallback(() => cellMetricsRef.current ?? refreshCellMetrics(), [refreshCellMetrics]);
 
   const ensurePreviewCells = useCallback((count: number) => {
     const container = previewOverlayRef.current;
@@ -483,7 +551,6 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
     if (!metrics) return;
 
     lastHoverCoordsRef.current = [x, y];
-    setHoverTile({ x, y });
 
     const hover = hoverOverlayRef.current;
     if (hover) {
@@ -500,6 +567,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
       });
       return;
     }
+    setHoverTile((prev) => (prev && prev.x === x && prev.y === y ? prev : { x, y }));
 
     const previewLen = currentMarked.getLength >= 3 && currentMarked.getDirection % 90 !== 0 ? currentMarked.getLength - 1 : currentMarked.getLength;
     const offsets = Array.from({ length: previewLen }, (_, k) => {
@@ -555,14 +623,34 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
 
   const getTileLocationFromPointer = useCallback((event: PointerEvent): [number, number] | null => {
     const metrics = getCellMetrics();
-    if (!metrics) return null;
+    const viewport = viewportRef.current;
+    if (!metrics || !viewport) return null;
 
-    const col = Math.floor((event.clientX - metrics.rect.left) / metrics.width);
-    const row = Math.floor((event.clientY - metrics.rect.top) / metrics.height);
+    const col = Math.floor((event.clientX - metrics.viewportLeft + viewport.scrollLeft) / metrics.width);
+    const row = Math.floor((event.clientY - metrics.viewportTop + viewport.scrollTop) / metrics.height);
     if (row < 0 || row >= size || col < 0 || col >= size) return null;
 
     return [row, col];
   }, [getCellMetrics, size]);
+
+  useLayoutEffect(() => {
+    cellMetricsRef.current = null;
+    refreshCellMetrics();
+  }, [mapZoom, maxBoardPixels, refreshCellMetrics]);
+
+  useEffect(() => {
+    const refresh = () => {
+      cellMetricsRef.current = null;
+      refreshCellMetrics();
+    };
+
+    window.addEventListener('resize', refresh, { passive: true });
+    window.addEventListener('scroll', refresh, { passive: true });
+    return () => {
+      window.removeEventListener('resize', refresh);
+      window.removeEventListener('scroll', refresh);
+    };
+  }, [refreshCellMetrics]);
 
   useEffect(() => {
     const wrapper = boardWrapperRef.current;
@@ -899,32 +987,63 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerI
             const ship = boardShips[moveShipIdx];
             if (!ship || ship.hasMovedThisTurn) return null;
             const [r, c] = ship.getOrigin;
-            const arrowSymbol: Record<string, string> = {
-              '0,-1': '◀', '-1,-1': '◤', '-1,0': '▲', '-1,1': '◢',
-              '0,1': '▶', '1,1': '◣', '1,0': '▼', '1,-1': '◥',
-            };
-            return movePreviewDeltas.map(([dr, dc]) => {
-              const ar = r + dr;
-              const ac = c + dc;
+            const shipForward = SHIP_DIRECTION_DELTAS[ship.getDirection] ?? [0, 1];
+            const tailR = r - (shipForward[0] * (ship.placedLength - 1));
+            const tailC = c - (shipForward[1] * (ship.placedLength - 1));
+            const renderArrow = (
+              key: string,
+              row: number,
+              col: number,
+              delta: [number, number],
+              onClick: () => void,
+            ) => {
+              const arrowAngle = MOVEMENT_ARROW_ANGLES[`${delta[0]},${delta[1]}`] ?? 0;
               return (
-                <div key={`arrow-${dr},${dc}`} style={{
+                <div
+                  key={key}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onClick();
+                  }}
+                  style={{
                   position: 'absolute',
-                  left: `calc(${paddingLeft} + (${ac} * ${cellSize}) + (${cellSize} / 2) - 0.5rem)`,
-                  top: `calc((${ar} * ${cellSize}) + (${cellSize} / 2) - 0.5rem)`,
+                  left: `calc(${paddingLeft} + (${col} * ${cellSize}) + (${cellSize} / 2) - 0.5rem)`,
+                  top: `calc((${row} * ${cellSize}) + (${cellSize} / 2) - 0.5rem)`,
                   width: '1rem',
                   height: '1rem',
+                  transform: getArrowTranslate(delta),
                   zIndex: 13,
-                  pointerEvents: 'none',
-                  fontSize: '1rem',
-                  lineHeight: '1rem',
-                  textAlign: 'center',
+                  pointerEvents: 'auto',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.05rem',
+                  lineHeight: 1,
                   color: '#2ecc71',
                   filter: 'drop-shadow(0 0 4px rgba(46,204,113,0.9))',
-                }}>
-                  {arrowSymbol[`${dr},${dc}`] ?? '●'}
+                }}
+                >
+                  <span style={{
+                    display: 'block',
+                    transform: `rotate(${arrowAngle}deg)`,
+                    transformOrigin: '50% 50%',
+                  }}>
+                    ➜
+                  </span>
                 </div>
               );
-            });
+            };
+            return (
+              <>
+                {movePreviewDeltas.map(([dr, dc]) => {
+                  const isForwardMove = dr === shipForward[0] && dc === shipForward[1];
+                  const ar = isForwardMove ? r : tailR;
+                  const ac = isForwardMove ? c : tailC;
+                  return renderArrow(`arrow-${dr},${dc}`, ar, ac, [dr, dc], () => handleMoveDelta(dr, dc));
+                })}
+              </>
+            );
           })()}
 
           {/* Grid Rows */}
