@@ -69,7 +69,7 @@ class Gameboard {
         else {
           const shipParts = tile.getParts;
           const shipOrigin = tile.getOrigin;
-          const partToHit = Math.abs(shipOrigin[0] - i) + Math.abs(shipOrigin[1] - j);
+          const partToHit = Math.max(Math.abs(shipOrigin[0] - i), Math.abs(shipOrigin[1] - j));
           if(!shipParts[partToHit]) {
             states.shipNotHit.push([i, j]);
           }
@@ -123,17 +123,23 @@ class Gameboard {
   private getPlacementOffsets(shipLength: number, direction: number): [number, number][] {
     return Array.from({ length: shipLength }, (_, k) => {
       if (direction === 0) return [0, k]; // Grows left (origin is right)
+      if (direction === 45) return [k, k]; // Grows up-left (origin is bottom-right)
       if (direction === 90) return [k, 0]; // Grows up (origin is bottom)
+      if (direction === 135) return [k, -k]; // Grows up-right (origin is bottom-left)
       if (direction === 180) return [0, -k]; // Grows right (origin is left)
+      if (direction === 225) return [-k, -k]; // Grows down-right (origin is top-left)
       if (direction === 270) return [-k, 0]; // Grows down (origin is top)
+      if (direction === 315) return [-k, k]; // Grows down-left (origin is top-right)
       return [0, k];
     });
   }
 
-  placeShip(shipLength: number, location: [number, number], direction: number | boolean, shipType: string = ""): void {
+  placeShip(shipLength: number, location: [number, number], direction: number | boolean, shipType: string = "", placeLen?: number): void {
     const dir = typeof direction === 'boolean' ? (direction ? 90 : 0) : direction;
     const battleship = new Battleship(shipLength, [location[0], location[1]], dir, shipType);
-    const placementOffset = this.getPlacementOffsets(shipLength, dir);
+    const useLen = placeLen ?? shipLength;
+    battleship.placedLength = useLen;
+    const placementOffset = this.getPlacementOffsets(useLen, dir);
     const contactOffset: number[][] = [
       [-1, -1],
       [-1, 0],
@@ -191,7 +197,7 @@ class Gameboard {
     if(typeof this.tiles[location[0]][location[1]] === "boolean") return;
 
     const ship = this.tiles[location[0]][location[1]] as Battleship;
-    const shipLength = ship.getLength;
+    const shipLength = ship.placedLength;
     const shipOrigin = ship.getOrigin;
     const shipDirection = ship.getDirection;
     const offset = this.getPlacementOffsets(shipLength, shipDirection);
@@ -234,25 +240,167 @@ class Gameboard {
     return false;
   }
 
+  canMoveShipTo(ship: Battleship, newR: number, newC: number): boolean {
+    const useLen = ship.placedLength;
+    const dir = ship.getDirection;
+    const offsets = this.getPlacementOffsets(useLen, dir);
+
+    const newPositions: [number, number][] = [];
+    for (const [ox, oy] of offsets) {
+      const tx = newR - ox;
+      const ty = newC - oy;
+      if (tx < 0 || tx >= this.size || ty < 0 || ty >= this.size) return false;
+      if (this.heightMap[tx][ty] >= 0.3) return false;
+      newPositions.push([tx, ty]);
+    }
+
+    for (const [tx, ty] of newPositions) {
+      const tile = this.tiles[tx][ty];
+      if (typeof tile !== 'boolean' && tile !== ship) return false;
+    }
+    return true;
+  }
+
+  moveShipDelta(shipIndex: number, deltaRow: number, deltaCol: number): boolean {
+    if (deltaRow === 0 && deltaCol === 0) return false;
+    const ship = this.ships[shipIndex];
+    if (!ship) return false;
+
+    const [origR, origC] = ship.getOrigin;
+    const newR = origR + deltaRow;
+    const newC = origC + deltaCol;
+
+    if (!this.canMoveShipTo(ship, newR, newC)) return false;
+
+    const useLen = ship.placedLength;
+    const dir = ship.getDirection;
+    const offsets = this.getPlacementOffsets(useLen, dir);
+
+    for (const [ox, oy] of offsets) {
+      this.tiles[origR - ox][origC - oy] = false;
+    }
+    for (const [ox, oy] of offsets) {
+      this.tiles[newR - ox][newC - oy] = ship;
+    }
+    ship.setOrigin([newR, newC]);
+    return true;
+  }
+
+  rotateShipInPlace(shipIndex: number, deltaDir: number): boolean {
+    const ship = this.ships[shipIndex];
+    if (!ship) return false;
+
+    const [origR, origC] = ship.getOrigin;
+    const oldDir = ship.getDirection;
+    const newDir = ((oldDir + deltaDir) % 360 + 360) % 360;
+    if (oldDir === newDir) return false;
+
+    const oldUseLen = ship.placedLength;
+    const newUseLen = ship.getLength >= 3 && newDir % 90 !== 0 ? ship.getLength - 1 : ship.getLength;
+    const oldOffsets = this.getPlacementOffsets(oldUseLen, oldDir);
+    const newOffsets = this.getPlacementOffsets(newUseLen, newDir);
+
+    const newR = origR - oldOffsets[oldUseLen - 1][0] + newOffsets[newUseLen - 1][0];
+    const newC = origC - oldOffsets[oldUseLen - 1][1] + newOffsets[newUseLen - 1][1];
+
+    for (const [ox, oy] of newOffsets) {
+      const tx = newR - ox;
+      const ty = newC - oy;
+      if (tx < 0 || tx >= this.size || ty < 0 || ty >= this.size) return false;
+      if (this.heightMap[tx][ty] >= 0.3) return false;
+    }
+
+    for (const [ox, oy] of newOffsets) {
+      const tx = newR - ox;
+      const ty = newC - oy;
+      const tile = this.tiles[tx][ty];
+      if (typeof tile !== 'boolean' && tile !== ship) return false;
+    }
+
+    for (const [ox, oy] of oldOffsets) {
+      this.tiles[origR - ox][origC - oy] = false;
+    }
+    ship.setDirection(newDir);
+    ship.setOrigin([newR, newC]);
+    ship.placedLength = newUseLen;
+    for (const [ox, oy] of newOffsets) {
+      this.tiles[newR - ox][newC - oy] = ship;
+    }
+    return true;
+  }
+
+  moveAndRotate(shipIndex: number, deltaDir: number): boolean {
+    const ship = this.ships[shipIndex];
+    if (!ship) return false;
+
+    const [origR, origC] = ship.getOrigin;
+    const oldDir = ship.getDirection;
+    const newDir = ((oldDir + deltaDir) % 360 + 360) % 360;
+    if (oldDir === newDir) return false;
+
+    const fwdMap: Record<number, [number, number]> = {
+      0: [0, 1], 45: [1, 1], 90: [1, 0], 135: [1, -1],
+      180: [0, -1], 225: [-1, -1], 270: [-1, 0], 315: [-1, 1],
+    };
+    const fd = fwdMap[oldDir] ?? [0, -1];
+
+    const movedR = origR + fd[0];
+    const movedC = origC + fd[1];
+    const oldUseLen = ship.placedLength;
+    const newUseLen = ship.getLength >= 3 && newDir % 90 !== 0 ? ship.getLength - 1 : ship.getLength;
+    const oldOffsets = this.getPlacementOffsets(oldUseLen, oldDir);
+    const newOffsets = this.getPlacementOffsets(newUseLen, newDir);
+
+    const tailR = movedR - oldOffsets[oldUseLen - 1][0];
+    const tailC = movedC - oldOffsets[oldUseLen - 1][1];
+    const newR = tailR + newOffsets[newUseLen - 1][0];
+    const newC = tailC + newOffsets[newUseLen - 1][1];
+
+    for (const [ox, oy] of newOffsets) {
+      const tx = newR - ox;
+      const ty = newC - oy;
+      if (tx < 0 || tx >= this.size || ty < 0 || ty >= this.size) return false;
+      if (this.heightMap[tx][ty] >= 0.3) return false;
+    }
+    for (const [ox, oy] of newOffsets) {
+      const tx = newR - ox;
+      const ty = newC - oy;
+      const tile = this.tiles[tx][ty];
+      if (typeof tile !== 'boolean' && tile !== ship) return false;
+    }
+
+    for (const [ox, oy] of oldOffsets) {
+      this.tiles[origR - ox][origC - oy] = false;
+    }
+    ship.setDirection(newDir);
+    ship.setOrigin([newR, newC]);
+    ship.placedLength = newUseLen;
+    for (const [ox, oy] of newOffsets) {
+      this.tiles[newR - ox][newC - oy] = ship;
+    }
+    return true;
+  }
+
   receiveAttack(location: [number, number]): boolean {
-    const state = this.getBoardStates;
-    const validAttacks = [...state.shipNotHit, ...state.notShot];
-    if(!validAttacks.some((attack) => attack[0] === location[0] && attack[1] === location[1])) {
-      return false;
-    }
-    if(state.notShot.find((el) => el[0] === location[0] && el[1] === location[1])) {
-      this.tiles[location[0]][location[1]] = true;
-      return true;
-    }
-    if(state.shipNotHit.find((el) => el[0] === location[0] && el[1] === location[1])) {
-      const tile = this.tiles[location[0]][location[1]];
-      (tile as Battleship).hit(
-        Math.abs((tile as Battleship).getOrigin[0] - location[0]) + Math.abs((tile as Battleship).getOrigin[1] - location[1])
+    if (
+      location[0] < 0 || location[0] >= this.size ||
+      location[1] < 0 || location[1] >= this.size
+    ) return false;
+
+    const tile = this.tiles[location[0]][location[1]];
+
+    if (typeof tile !== 'boolean') {
+      const partIndex = Math.max(
+        Math.abs(tile.getOrigin[0] - location[0]),
+        Math.abs(tile.getOrigin[1] - location[1])
       );
-      this.markAroundSunk(tile as Battleship);
+      tile.hit(partIndex);
+      this.markAroundSunk(tile);
       return true;
     }
-    return false;
+
+    this.tiles[location[0]][location[1]] = true;
+    return true;
   }
 
   allSunk(): boolean {
@@ -312,7 +460,7 @@ class Gameboard {
   private markAroundSunk(ship: Battleship): void {
     if(ship.isSunk()) {
       const origin = ship.getOrigin;
-      const partsOffset = this.getPlacementOffsets(ship.getLength, ship.getDirection);
+      const partsOffset = this.getPlacementOffsets(ship.placedLength, ship.getDirection);
       const aroundOffset: number[][] = [
         [-1, -1],
         [-1, 0],

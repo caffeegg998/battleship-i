@@ -22,21 +22,22 @@ class Game {
     this.players[1].getBoard.distributeShips(this.shipSizes);
   }
 
-  init(): void {
-    if(this.players[0].getBoard.getShips.length === this.shipSizes.length && !this.initialized) {
+  init(playerIndex: number = 0): void {
+    if(this.players[playerIndex].getBoard.getShips.length === this.shipSizes.length && !this.initialized) {
       this.initialized = true;
     }
   }
 
-  setOpponentShips(ships: {length: number, origin: [number, number], direction: number, shipType: string}[]): void {
-    const board = this.players[1].getBoard;
+  setOpponentShips(ships: {length: number, origin: [number, number], direction: number, shipType: string, placedLength?: number}[], localPlayerIndex: number = 0): void {
+    const opponentIndex = 1 - localPlayerIndex;
+    const board = this.players[opponentIndex].getBoard;
     // Clear random ships first
     const currentShips = [...board.getShips];
     currentShips.forEach(s => board.removeShip(s.getOrigin));
     
     // Place new ships
     ships.forEach(s => {
-      board.placeShip(s.length, s.origin, s.direction, s.shipType);
+      board.placeShip(s.length, s.origin, s.direction, s.shipType, s.placedLength);
     });
   }
 
@@ -74,6 +75,8 @@ class Game {
 
   next(): void {
     this.currentPlayer = (1 - this.currentPlayer) as 0 | 1;
+    this.players[this.currentPlayer].getBoard.getShips.forEach(s => s.setMoved = false);
+    this.players[1 - this.currentPlayer].getBoard.getShips.forEach(s => s.setMoved = false);
   }
 
   playerTurn(location: [number, number]): boolean {
@@ -81,12 +84,8 @@ class Game {
   }
 
   computerTurn(): void {
-    let attack: [number, number];
-    let success = false;
-    do {
-      attack = (this.getCurrentPlayer.chooseAttack(this.getOpponent.getBoard)) as [number, number];
-      success = this.getOpponent.getBoard.receiveAttack(attack);
-    } while(!success);
+    const attack = (this.getCurrentPlayer.chooseAttack(this.getOpponent.getBoard)) as [number, number];
+    this.getOpponent.getBoard.receiveAttack(attack);
   }
 
   isWinner(): -1 | 0 | 1 {

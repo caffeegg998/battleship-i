@@ -6,10 +6,13 @@ class Battleship {
     public direction: number;
     public shipType: string;
     private weaponCooldowns: Record<string, number>;
+    public placedLength: number;
+    public hasMovedThisTurn: boolean = false;
 
     constructor(shipLength: number, origin: [number, number], direction: number | boolean, shipType: string = "") {
         this.parts = new Array(shipLength).fill(false);
         this.origin = origin;
+        this.placedLength = shipLength;
         if (typeof direction === 'boolean') {
             this.direction = direction ? 90 : 0;
         } else {
@@ -61,7 +64,7 @@ class Battleship {
     }
 
     isSunk(): boolean {
-        return this.parts.every((part) => part);
+        return this.parts.slice(0, this.placedLength).every((part) => part);
     }
 
     getWeaponCooldowns(): Record<string, number> {
@@ -82,6 +85,14 @@ class Battleship {
                 this.weaponCooldowns[key]--;
             }
         }
+    }
+
+    get getMoved(): boolean {
+        return this.hasMovedThisTurn;
+    }
+
+    set setMoved(val: boolean) {
+        this.hasMovedThisTurn = val;
     }
 }
 

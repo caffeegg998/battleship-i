@@ -215,18 +215,13 @@ export const generateUnifiedMap = (size: number, seed: number = 20): UnifiedMap 
       { row: size - 1 - 2, col: 2, kind: "corner" },
       { row: size - 1 - 2, col: cols - 1 - 2, kind: "corner" },
     ];
-    const outerEdgeAnchors: ContinentAnchor[] = [
-      { row: Math.floor(size * 0.5), col: 2, kind: "outerEdge" },
-      { row: Math.floor(size * 0.5), col: cols - 1 - 2, kind: "outerEdge" },
-      { row: Math.floor(size * 0.3), col: 2, kind: "outerEdge" },
-      { row: Math.floor(size * 0.7), col: 2, kind: "outerEdge" },
-      { row: Math.floor(size * 0.3), col: cols - 1 - 2, kind: "outerEdge" },
-      { row: Math.floor(size * 0.7), col: cols - 1 - 2, kind: "outerEdge" },
-    ];
-    const middleSeamAnchors: ContinentAnchor[] = [
+    const seamAnchors: ContinentAnchor[] = [
+      { row: Math.floor(size * 0.25), col: size - 1, kind: "middleSeam" },
       { row: Math.floor(size * 0.5), col: size - 1, kind: "middleSeam" },
-      { row: Math.floor(size * 0.45), col: size, kind: "middleSeam" },
-      { row: Math.floor(size * 0.55), col: size, kind: "middleSeam" },
+      { row: Math.floor(size * 0.75), col: size - 1, kind: "middleSeam" },
+      { row: Math.floor(size * 0.25), col: size, kind: "middleSeam" },
+      { row: Math.floor(size * 0.5), col: size, kind: "middleSeam" },
+      { row: Math.floor(size * 0.75), col: size, kind: "middleSeam" },
     ];
     const edgeSeamAnchorGroups: ContinentAnchor[][] = [
       [
@@ -251,10 +246,12 @@ export const generateUnifiedMap = (size: number, seed: number = 20): UnifiedMap 
       right: 0,
     };
     const optionalSeamAnchors: ContinentAnchor[] = [];
-    if (twister.random() < 0.08) {
-      const anchor = middleSeamAnchors[Math.floor(twister.random() * middleSeamAnchors.length)];
-      optionalSeamAnchors.push(anchor);
-      halfCounts[anchorHalf(anchor)] += 1;
+    for (const anchor of shuffleAnchors([...seamAnchors])) {
+      if (optionalSeamAnchors.length >= 2) break;
+      if (twister.random() < 0.22) {
+        optionalSeamAnchors.push(anchor);
+        halfCounts[anchorHalf(anchor)] += 1;
+      }
     }
 
     for (let i = edgeSeamAnchorGroups.length - 1; i > 0; i--) {
@@ -262,8 +259,8 @@ export const generateUnifiedMap = (size: number, seed: number = 20): UnifiedMap 
       [edgeSeamAnchorGroups[i], edgeSeamAnchorGroups[j]] = [edgeSeamAnchorGroups[j], edgeSeamAnchorGroups[i]];
     }
     for (const group of edgeSeamAnchorGroups) {
-      if (optionalSeamAnchors.length > 0) break;
-      if (twister.random() < 0.14) {
+      if (optionalSeamAnchors.length >= 2) break;
+      if (twister.random() < 0.18) {
         const anchor = group[Math.floor(twister.random() * group.length)];
         optionalSeamAnchors.push(anchor);
         halfCounts[anchorHalf(anchor)] += 1;
@@ -273,7 +270,7 @@ export const generateUnifiedMap = (size: number, seed: number = 20): UnifiedMap 
     const maxCorners = numContinents <= 3 ? 1 : 2;
     const maxPerHalf = Math.ceil(numContinents / 2);
     let cornerCount = 0;
-    const baseAnchorPool = shuffleAnchors([...cornerAnchors, ...outerEdgeAnchors]);
+    const baseAnchorPool = shuffleAnchors([...cornerAnchors]);
     for (const anchor of baseAnchorPool) {
       if (anchors.length >= numContinents) break;
       const half = anchorHalf(anchor);

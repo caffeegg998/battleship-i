@@ -19,13 +19,17 @@ type BoardProps = {
   localAvatar?: string;
   seed?: number;
   maxBoardPixels?: number;
+  showMissedMarkers?: boolean;
 };
 
-const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateBoardState, seed, maxBoardPixels }: BoardProps) => {
+const Board = ({ player, game, state, loop, turn, init, reset, gameMode, playerIndex, updateBoardState, seed, maxBoardPixels, showMissedMarkers = true }: BoardProps) => {
   const [active, setActive] = useState<string>("");
   const [marked, setMarked] = useState<Battleship | null>(null);
   const [rotationToggle, setRotationToggle] = useState(false);
   const [mapZoom, setMapZoom] = useState<number>(1);
+  const [hoverTile, setHoverTile] = useState<{ x: number, y: number } | null>(null);
+  const [moveShipIdx, setMoveShipIdx] = useState<number | null>(null);
+  const [movePreviewDeltas, setMovePreviewDeltas] = useState<[number, number][]>([]);
   const zKeyRef = useRef(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const boardWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -53,6 +57,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
   const size = board.getSize;
   const heightMap = board.getHeightMap;
   const textureUrl = board.getTextureUrl;
+  const isLocalBoard = player === (playerIndex ?? 0);
 
   const coordKey = (x: number, y: number) => `${x},${y}`;
   const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -63,6 +68,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
       pointerFrameRef.current = null;
     }
     lastHoverCoordsRef.current = null;
+    setHoverTile(null);
     const hover = hoverOverlayRef.current;
     if (hover) hover.style.display = 'none';
     previewCellRefs.current.forEach((cell) => {
@@ -102,13 +108,12 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
     shipNotHit: new Set((state.shipNotHit || []).map(([x, y]) => coordKey(x, y))),
     shipHit: new Set((state.shipHit || []).map(([x, y]) => coordKey(x, y))),
     missed: new Set((state.missed || []).map(([x, y]) => coordKey(x, y))),
-    landHit: new Set((state.landHit || []).map(([x, y]) => coordKey(x, y))),
   }), [state]);
 
   const validTileSet = useMemo(() => {
-    if (!marked || player !== 0 || game.getInit) return new Set<string>();
+    if (!marked || !isLocalBoard || game.getInit) return new Set<string>();
     return new Set(board.getValidTiles.map(([x, y]) => coordKey(x, y)));
-  }, [board, game, marked, player, stateSets]);
+  }, [board, game, marked, player, playerIndex, stateSets]);
 
   useEffect(() => {
     markedRef.current = marked;
@@ -128,7 +133,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
     // Restore square-based visual feedback
     const key = coordKey(x, y);
 
-    if (player === 0) {
+    if (isLocalBoard) {
       if (stateSets.shipNotHit.has(key)) classes += " ship-not-hit";
     }
 
@@ -141,37 +146,35 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
       }
     }
 
-    if (stateSets.missed.has(key)) {
+    if (showMissedMarkers && stateSets.missed.has(key)) {
       classes += " missed";
-    }
-
-    if (stateSets.landHit.has(key)) {
-      classes += " land-hit";
     }
 
     return classes;
   };
 
   const chooseAction = useCallback((x: number, y: number) => {
-    const isOpponentBoard = player === 1;
+    const isOpponentBoard = !isLocalBoard;
 
-    if (turn === 0 && isOpponentBoard && game.getInit) {
+    if (turn === (playerIndex ?? 0) && isOpponentBoard && game.getInit) {
       loop([x, y]);
-    } else if (player === 0 && !game.getInit) {
+    } else if (isLocalBoard && !game.getInit) {
       const board = game.getPlayer(player).getBoard;
       if (!marked) {
         const tile = board.getTiles[x][y];
         if (typeof tile !== 'boolean') {
           const ship = board.removeShip([x, y]);
           if (ship) {
-            lastHoverCoordsRef.current = [x, y];
+    lastHoverCoordsRef.current = [x, y];
+    setHoverTile({ x, y });
             setMarked(ship);
             if (updateBoardState) updateBoardState();
           }
         }
       } else {
         try {
-          board.placeShip(marked.getLength, [x, y], marked.getDirection, marked.shipType);
+          const placeLen = marked.getLength >= 3 && marked.getDirection % 90 !== 0 ? marked.getLength - 1 : marked.getLength;
+          board.placeShip(marked.getLength, [x, y], marked.getDirection, marked.shipType, placeLen);
           setMarked(null);
           clearHoverPreview();
           if (updateBoardState) updateBoardState();
@@ -179,24 +182,94 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
           return;
         }
       }
+    } else if (isLocalBoard && game.getInit && turn === (playerIndex ?? 0)) {
+      const board = game.getPlayer(player).getBoard;
+      const forwardDelta: Record<number, [number, number]> = {
+        0: [0, 1], 45: [1, 1], 90: [1, 0], 135: [1, -1],
+        180: [0, -1], 225: [-1, -1], 270: [-1, 0], 315: [-1, 1],
+      };
+      if (moveShipIdx === null) {
+        const tile = board.getTiles[x][y];
+        if (typeof tile !== 'boolean' && !tile.hasMovedThisTurn && !tile.isSunk()) {
+          const idx = boardShips.indexOf(tile);
+          if (idx >= 0) {
+            setMoveShipIdx(idx);
+            const fd = forwardDelta[tile.getDirection] ?? [0, 1];
+            const deltas: [number, number][] = [];
+            if (board.canMoveShipTo(tile, x + fd[0], y + fd[1])) deltas.push(fd);
+            if (board.canMoveShipTo(tile, x - fd[0], y - fd[1])) deltas.push([-fd[0], -fd[1]]);
+            setMovePreviewDeltas(deltas);
+          }
+        } else {
+          setMoveShipIdx(null);
+          setMovePreviewDeltas([]);
+        }
+      } else {
+        const ship = boardShips[moveShipIdx];
+        if (ship) {
+          const [origR, origC] = ship.getOrigin;
+          const dr = x - origR;
+          const dc = y - origC;
+          if (movePreviewDeltas.some(([rd, cd]) => rd === dr && cd === dc)) {
+            if (board.moveShipDelta(moveShipIdx, dr, dc)) {
+              ship.hasMovedThisTurn = true;
+              if (updateBoardState) updateBoardState();
+            }
+          }
+        }
+        setMoveShipIdx(null);
+        setMovePreviewDeltas([]);
+      }
     }
-  }, [game, loop, marked, player, turn, updateBoardState]);
+  }, [game, loop, marked, player, playerIndex, turn, updateBoardState, moveShipIdx, boardShips, movePreviewDeltas]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (player === 0 && !game.getInit && marked) {
+      if (isLocalBoard && !game.getInit && marked) {
         if (e.key.toLowerCase() === 'q') {
-          marked.setDirection(marked.getDirection - 90);
+          marked.setDirection(marked.getDirection - 45);
           setRotationToggle(prev => !prev);
         } else if (e.key.toLowerCase() === 'e') {
-          marked.setDirection(marked.getDirection + 90);
+          marked.setDirection(marked.getDirection + 45);
           setRotationToggle(prev => !prev);
+        }
+      } else if (isLocalBoard && game.getInit && moveShipIdx !== null) {
+        const board = game.getPlayer(player).getBoard;
+        const ship = board.getShips[moveShipIdx];
+        if (!ship) return;
+        if (e.key.toLowerCase() === 'q') {
+          if (board.moveAndRotate(moveShipIdx, -45)) {
+            ship.hasMovedThisTurn = true;
+            setMoveShipIdx(null);
+            setMovePreviewDeltas([]);
+            if (updateBoardState) updateBoardState();
+          }
+        } else if (e.key.toLowerCase() === 'e') {
+          if (board.moveAndRotate(moveShipIdx, 45)) {
+            ship.hasMovedThisTurn = true;
+            setMoveShipIdx(null);
+            setMovePreviewDeltas([]);
+            if (updateBoardState) updateBoardState();
+          }
+        } else if (e.key.toLowerCase() === 'a' || e.key.toLowerCase() === 'd') {
+          const fwdMap: Record<number, [number, number]> = {
+            0: [0, 1], 45: [1, 1], 90: [1, 0], 135: [1, -1],
+            180: [0, -1], 225: [-1, -1], 270: [-1, 0], 315: [-1, 1],
+          };
+          const fd = fwdMap[ship.getDirection] ?? [0, -1];
+          const delta: [number, number] = e.key.toLowerCase() === 'a' ? [-fd[0], -fd[1]] : fd;
+          if (board.moveShipDelta(moveShipIdx, delta[0], delta[1])) {
+            ship.hasMovedThisTurn = true;
+            setMoveShipIdx(null);
+            setMovePreviewDeltas([]);
+            if (updateBoardState) updateBoardState();
+          }
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [game, marked, player]);
+  }, [game, marked, player, playerIndex, moveShipIdx, movePreviewDeltas, updateBoardState]);
 
   useEffect(() => {
     if (!game.getInit) {
@@ -212,6 +285,8 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
     if (reset) {
       setMarked(null);
       clearHoverPreview();
+      setMoveShipIdx(null);
+      setMovePreviewDeltas([]);
     }
   }, [reset, clearHoverPreview]);
 
@@ -408,6 +483,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
     if (!metrics) return;
 
     lastHoverCoordsRef.current = [x, y];
+    setHoverTile({ x, y });
 
     const hover = hoverOverlayRef.current;
     if (hover) {
@@ -418,18 +494,23 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
     }
 
     const currentMarked = markedRef.current;
-    if (!currentMarked || player !== 0 || game.getInit) {
+    if (!currentMarked || !isLocalBoard || game.getInit) {
       previewCellRefs.current.forEach((cell) => {
         cell.style.display = 'none';
       });
       return;
     }
 
-    const offsets = Array.from({ length: currentMarked.getLength }, (_, k) => {
+    const previewLen = currentMarked.getLength >= 3 && currentMarked.getDirection % 90 !== 0 ? currentMarked.getLength - 1 : currentMarked.getLength;
+    const offsets = Array.from({ length: previewLen }, (_, k) => {
       if (currentMarked.getDirection === 0) return [0, k];
+      if (currentMarked.getDirection === 45) return [k, k];
       if (currentMarked.getDirection === 90) return [k, 0];
+      if (currentMarked.getDirection === 135) return [k, -k];
       if (currentMarked.getDirection === 180) return [0, -k];
+      if (currentMarked.getDirection === 225) return [-k, -k];
       if (currentMarked.getDirection === 270) return [-k, 0];
+      if (currentMarked.getDirection === 315) return [-k, k];
       return [0, k];
     });
     const cells = offsets.map(([ox, oy]) => [x - ox, y - oy] as [number, number]);
@@ -450,7 +531,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
       cell.style.backgroundColor = color;
       cell.style.transform = `translate3d(${c * metrics.width}px, ${r * metrics.height}px, 0)`;
     });
-  }, [ensurePreviewCells, game, getCellMetrics, player]);
+  }, [ensurePreviewCells, game, getCellMetrics, player, playerIndex]);
 
   useEffect(() => {
     const lastHover = lastHoverCoordsRef.current;
@@ -551,7 +632,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
         })}
       </div>
     ))
-  ), [board, heightMap, stateSets]);
+  ), [board, heightMap, stateSets, showMissedMarkers]);
   const yAxisLabels = useMemo(() => (
     Array.from({ length: size }, (_, row) => (
       <div
@@ -663,24 +744,37 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
          )}
 
          {/* Render ship textures as overlays */}
-         {boardShips.map((ship, idx) => {
-           if (player === 1 && !ship.isSunk()) return null;
+          {boardShips.map((ship, idx) => {
+            if (!isLocalBoard && !ship.isSunk()) return null;
            
            const [x, y] = ship.getOrigin;
            const dir = ship.getDirection;
            
-           let visualX = x;
-           let visualY = y;
-           
-           if (dir === 0) {
-              visualY -= (ship.getLength - 1);
-           } else if (dir === 90) {
-              visualX -= (ship.getLength - 1);
-           } else if (dir === 180) {
-              visualY += (ship.getLength - 1);
-           } else if (dir === 270) {
-              visualX += (ship.getLength - 1);
-           }
+            let visualX = x;
+            let visualY = y;
+            const placeLen = ship.placedLength;
+            
+            if (dir === 0) {
+               visualY -= (placeLen - 1);
+            } else if (dir === 45) {
+               visualX -= (placeLen - 1);
+               visualY -= (placeLen - 1);
+            } else if (dir === 90) {
+               visualX -= (placeLen - 1);
+            } else if (dir === 135) {
+               visualX -= (placeLen - 1);
+               visualY += (placeLen - 1);
+            } else if (dir === 180) {
+               visualY += (placeLen - 1);
+            } else if (dir === 225) {
+               visualX += (placeLen - 1);
+               visualY += (placeLen - 1);
+            } else if (dir === 270) {
+               visualX += (placeLen - 1);
+            } else if (dir === 315) {
+               visualX += (placeLen - 1);
+               visualY -= (placeLen - 1);
+            }
 
            return (
              <div key={idx} style={{ 
@@ -739,30 +833,6 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
             );
           })}
 
-          {/* Land hit markers above texture */}
-          {state.landHit?.map(([r, c]) => (
-            <div key={`land-${r}-${c}`} style={{
-              position: 'absolute',
-              left: `calc(${paddingLeft} + (${c} * ${cellSize}))`,
-              top: `calc((${r} * ${cellSize}))`,
-              width: cellSize,
-              height: cellSize,
-              zIndex: 9,
-              pointerEvents: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <div style={{
-                width: '40%',
-                height: '40%',
-                borderRadius: '50%',
-                backgroundColor: '#8B5E3C',
-                border: '2px solid #FFE0B2',
-                boxSizing: 'border-box',
-              }} />
-            </div>
-          ))}
 
           <div
             ref={hoverOverlayRef}
@@ -789,6 +859,74 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
             }}
           />
 
+          {/* Floating ship visual on hover tile */}
+          {marked && isLocalBoard && !game.getInit && hoverTile && (() => {
+            const dir = marked.getDirection;
+            const placeLen = marked.getLength >= 3 && dir % 90 !== 0 ? marked.getLength - 1 : marked.getLength;
+            let vx = hoverTile.x;
+            let vy = hoverTile.y;
+            if (dir === 0) vy -= (placeLen - 1);
+            else if (dir === 45) { vx -= (placeLen - 1); vy -= (placeLen - 1); }
+            else if (dir === 90) vx -= (placeLen - 1);
+            else if (dir === 135) { vx -= (placeLen - 1); vy += (placeLen - 1); }
+            else if (dir === 180) vy += (placeLen - 1);
+            else if (dir === 225) { vx += (placeLen - 1); vy += (placeLen - 1); }
+            else if (dir === 270) vx += (placeLen - 1);
+            else if (dir === 315) { vx += (placeLen - 1); vy -= (placeLen - 1); }
+            return (
+              <div style={{
+                position: 'absolute',
+                left: `calc(${paddingLeft} + (${vy} * ${cellSize}) + ${tileMargin})`,
+                top: `calc((${vx} * ${cellSize}) + ${tileMargin})`,
+                zIndex: 12,
+                pointerEvents: 'none',
+                filter: 'drop-shadow(0 0 3px rgba(46,204,113,0.9))',
+              }}>
+                <ShipVisual
+                  length={marked.getLength}
+                  direction={dir}
+                  isSunk={false}
+                  index={marked.shipType === "submarine" ? 1 : 0}
+                  boardSize={size}
+                  zoom={mapZoom}
+                />
+              </div>
+            );
+          })()}
+
+          {/* Movement arrows */}
+          {isLocalBoard && game.getInit && moveShipIdx !== null && (() => {
+            const ship = boardShips[moveShipIdx];
+            if (!ship || ship.hasMovedThisTurn) return null;
+            const [r, c] = ship.getOrigin;
+            const arrowSymbol: Record<string, string> = {
+              '0,-1': '◀', '-1,-1': '◤', '-1,0': '▲', '-1,1': '◢',
+              '0,1': '▶', '1,1': '◣', '1,0': '▼', '1,-1': '◥',
+            };
+            return movePreviewDeltas.map(([dr, dc]) => {
+              const ar = r + dr;
+              const ac = c + dc;
+              return (
+                <div key={`arrow-${dr},${dc}`} style={{
+                  position: 'absolute',
+                  left: `calc(${paddingLeft} + (${ac} * ${cellSize}) + (${cellSize} / 2) - 0.5rem)`,
+                  top: `calc((${ar} * ${cellSize}) + (${cellSize} / 2) - 0.5rem)`,
+                  width: '1rem',
+                  height: '1rem',
+                  zIndex: 13,
+                  pointerEvents: 'none',
+                  fontSize: '1rem',
+                  lineHeight: '1rem',
+                  textAlign: 'center',
+                  color: '#2ecc71',
+                  filter: 'drop-shadow(0 0 4px rgba(46,204,113,0.9))',
+                }}>
+                  {arrowSymbol[`${dr},${dc}`] ?? '●'}
+                </div>
+              );
+            });
+          })()}
+
           {/* Grid Rows */}
          {gridRows}
       </div>
@@ -803,16 +941,21 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
           >
             {textureUrl && <img src={textureUrl} alt="" />}
             <div className="board-minimap-grid" />
-            {player === 0 && boardShips.map((ship, i) => {
+            {isLocalBoard && boardShips.map((ship, i) => {
               const [r, c] = ship.getOrigin;
-              const len = ship.getLength;
+              const len = ship.placedLength;
               const dir = ship.getDirection;
               const isSunk = ship.isSunk();
               const pct = (v: number) => `${(v / size) * 100}%`;
               let left: number, top: number, w: number, h: number;
               if (dir === 0) { left = c - len + 1; top = r; w = len; h = 1; }
+              else if (dir === 45) { left = c - len + 1; top = r - len + 1; w = len; h = len; }
               else if (dir === 90) { left = c; top = r - len + 1; w = 1; h = len; }
+              else if (dir === 135) { left = c; top = r - len + 1; w = len; h = len; }
               else if (dir === 180) { left = c; top = r; w = len; h = 1; }
+              else if (dir === 225) { left = c; top = r; w = len; h = len; }
+              else if (dir === 270) { left = c; top = r; w = 1; h = len; }
+              else if (dir === 315) { left = c - len + 1; top = r; w = len; h = len; }
               else { left = c; top = r; w = 1; h = len; }
               return (
                 <div key={`minimap-ship-${i}`} style={{
@@ -843,7 +986,7 @@ const Board = ({ player, game, state, loop, turn, init, reset, gameMode, updateB
         )}
       </div>
     </BoardContainer>
- 
+  
   );
 }
 

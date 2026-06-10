@@ -15,14 +15,14 @@ export const ShipContainer = styled.div<{ $length: number, $direction: number, $
   width: calc(((${({ $length }) => $length} * var(--ship-tile-size)) + ((${({ $length }) => $length} - 1) * 0.2rem)));
   pointer-events: none;
   z-index: 5;
-  filter: drop-shadow(2px 1px 2px rgba(0, 0, 0, 1));
+  filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 1));
   
   transform: rotate(${({ $direction }) => $direction}deg);
   transform-origin: calc(var(--ship-tile-size) / 2) calc(var(--ship-tile-size) / 2);
 
   ${({ $isSunk }) => $isSunk && css`
     opacity: 0.7;
-    filter: grayscale(0.5) brightness(0.5) drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.3));
+    filter: grayscale(0.5) brightness(0.5) drop-shadow(0px 2px 2px rgba(0, 0, 0, 0.3));
   `}
 `;
 
@@ -34,7 +34,7 @@ export const ShipPart = styled.div`
 
 // Wrapper to allow drop-shadow outside of clip-path
 export const InnerShadowWrapper = styled(ShipPart)<{ $shadow?: string }>`
-  filter: ${({ $shadow }) => $shadow || 'drop-shadow(3px 5px 3px rgba(0, 0, 0, 0.6))'};
+  filter: ${({ $shadow }) => $shadow || 'drop-shadow(0px 5px 3px rgba(0, 0, 0, 0.6))'};
 `;
 
 // Carrier (Length 5)
