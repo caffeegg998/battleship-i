@@ -3,7 +3,7 @@
 exports[`component renders 1`] = `
 <DocumentFragment>
   <div
-    class="sc-bdDsCe fbFxuv"
+    class="sc-bdDsCe KpdCc"
     style="--tile-size: calc(calc((calc(20rem + 14vw) / 4) * 1) - (0.1rem * 2));"
   >
     <div

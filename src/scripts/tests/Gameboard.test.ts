@@ -186,3 +186,16 @@ test('properly marks tiles around sunk ship', () => {
     [true, true, true],
   ]);
 });
+
+test('moves backward and turns left with reverse steering', () => {
+  const board = new Gameboard(6);
+  board.placeShip(3, [2, 3], 0, 'cruiser');
+
+  expect(board.reverseAndRotate(0, 45)).toBe(true);
+  const ship = board.getShips[0];
+  expect(ship.getDirection).toBe(45);
+  expect(ship.getOrigin).toEqual([2, 2]);
+  expect(ship.placedLength).toBe(2);
+  expect(board.getTiles[2][2]).toBe(ship);
+  expect(board.getTiles[1][1]).toBe(ship);
+});

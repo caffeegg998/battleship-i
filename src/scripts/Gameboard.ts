@@ -330,13 +330,25 @@ class Gameboard {
   }
 
   moveAndRotate(shipIndex: number, deltaDir: number): boolean {
+    return this.moveRotateWithStep(shipIndex, deltaDir, 1, "tail");
+  }
+
+  reverseAndRotate(shipIndex: number, deltaDir: number): boolean {
+    return this.moveRotateWithStep(shipIndex, deltaDir, -1, "origin");
+  }
+
+  canReverseAndRotate(shipIndex: number, deltaDir: number): boolean {
+    return this.getMoveRotatePlacement(shipIndex, deltaDir, -1, "origin") !== null;
+  }
+
+  private getMoveRotatePlacement(shipIndex: number, deltaDir: number, stepDirection: 1 | -1, pivot: "tail" | "origin") {
     const ship = this.ships[shipIndex];
-    if (!ship) return false;
+    if (!ship) return null;
 
     const [origR, origC] = ship.getOrigin;
     const oldDir = ship.getDirection;
     const newDir = ((oldDir + deltaDir) % 360 + 360) % 360;
-    if (oldDir === newDir) return false;
+    if (oldDir === newDir) return null;
 
     const fwdMap: Record<number, [number, number]> = {
       0: [0, 1], 45: [1, 1], 90: [1, 0], 135: [1, -1],
@@ -344,8 +356,8 @@ class Gameboard {
     };
     const fd = fwdMap[oldDir] ?? [0, -1];
 
-    const movedR = origR + fd[0];
-    const movedC = origC + fd[1];
+    const movedR = origR + (fd[0] * stepDirection);
+    const movedC = origC + (fd[1] * stepDirection);
     const oldUseLen = ship.placedLength;
     const newUseLen = ship.getLength >= 3 && newDir % 90 !== 0 ? ship.getLength - 1 : ship.getLength;
     const oldOffsets = this.getPlacementOffsets(oldUseLen, oldDir);
@@ -353,21 +365,29 @@ class Gameboard {
 
     const tailR = movedR - oldOffsets[oldUseLen - 1][0];
     const tailC = movedC - oldOffsets[oldUseLen - 1][1];
-    const newR = tailR + newOffsets[newUseLen - 1][0];
-    const newC = tailC + newOffsets[newUseLen - 1][1];
+    const newR = pivot === "tail" ? tailR + newOffsets[newUseLen - 1][0] : movedR;
+    const newC = pivot === "tail" ? tailC + newOffsets[newUseLen - 1][1] : movedC;
 
     for (const [ox, oy] of newOffsets) {
       const tx = newR - ox;
       const ty = newC - oy;
-      if (tx < 0 || tx >= this.size || ty < 0 || ty >= this.size) return false;
-      if (this.heightMap[tx][ty] >= 0.3) return false;
+      if (tx < 0 || tx >= this.size || ty < 0 || ty >= this.size) return null;
+      if (this.heightMap[tx][ty] >= 0.3) return null;
     }
     for (const [ox, oy] of newOffsets) {
       const tx = newR - ox;
       const ty = newC - oy;
       const tile = this.tiles[tx][ty];
-      if (typeof tile !== 'boolean' && tile !== ship) return false;
+      if (typeof tile !== 'boolean' && tile !== ship) return null;
     }
+
+    return { ship, origR, origC, oldOffsets, newOffsets, newR, newC, newDir, newUseLen };
+  }
+
+  private moveRotateWithStep(shipIndex: number, deltaDir: number, stepDirection: 1 | -1, pivot: "tail" | "origin"): boolean {
+    const placement = this.getMoveRotatePlacement(shipIndex, deltaDir, stepDirection, pivot);
+    if (!placement) return false;
+    const { ship, origR, origC, oldOffsets, newOffsets, newR, newC, newDir, newUseLen } = placement;
 
     for (const [ox, oy] of oldOffsets) {
       this.tiles[origR - ox][origC - oy] = false;
